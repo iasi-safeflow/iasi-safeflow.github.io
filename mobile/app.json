@@ -39,8 +39,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": false,
-      "baseUrl": "/iasi-safeflow"
+      "typedRoutes": false
     }
   }
 }

@@ -36,7 +36,7 @@ cd mobile
 npm install
 npm run typecheck
 npx expo start            # phone (development build / compatible Expo Go)
-npm run web               # browser dev server, served under /iasi-safeflow
+npm run web               # browser dev server
 npm run build:web         # static export to mobile/dist (+ 404.html for GitHub Pages)
 ```
 
@@ -48,7 +48,7 @@ Backend (in `.env` locally, set in the host dashboard in production; never commi
 |---|---|
 | `SAFEFLOW_SECRET_KEY` | Signs session tokens. If empty, a random per-process key is used (everyone is logged out on restart). On Render it is generated automatically. |
 | `DEMO_REVIEWER_EMAIL` / `DEMO_REVIEWER_PASSWORD` | Demo reviewer account, created at startup if missing. There is no public reviewer sign-up. |
-| `SAFEFLOW_ALLOWED_ORIGINS` | Comma-separated exact browser origins allowed by CORS, e.g. `https://<github-username>.github.io` (origin only, no path). Wildcards are rejected at startup. Empty = no CORS headers. |
+| `SAFEFLOW_ALLOWED_ORIGINS` | Comma-separated exact browser origins allowed by CORS, e.g. `https://iasi-safeflow.github.io` (origin only, no path). Wildcards are rejected at startup. Empty = no CORS headers. |
 | `SAFEFLOW_SEED_DEMO_DATA` | `1` (default) seeds 8 labelled simulated reports **only if the database has no reports**. `0` disables. |
 | `SAFEFLOW_DB_PATH`, `SAFEFLOW_TOKEN_MAX_AGE`, `SAFEFLOW_REPORTS_PER_HOUR` | Optional. |
 
@@ -73,8 +73,9 @@ Web limitations: the session token in `localStorage` can be read by any script o
 acceptable only for this test-account demo. Browser GPS works only over HTTPS (GitHub Pages is HTTPS). The
 "Call 112" button opens a `tel:` link, which opens the phone dialer on Android Chrome and may do nothing on desktop.
 
-GitHub Pages serves the site at `https://<github-username>.github.io/iasi-safeflow/`. The base path is set in
-`mobile/app.json` (`experiments.baseUrl`). If the repository is renamed, update it there. `404.html` is a copy of
+GitHub Pages serves the site at the root of `https://iasi-safeflow.github.io/` (repository
+`iasi-safeflow/iasi-safeflow.github.io`, an organization Pages site). If it is ever moved to a project repository,
+the site would live under `/<repo-name>/`: set `experiments.baseUrl` in `mobile/app.json` accordingly. `404.html` is a copy of
 `index.html` so deep links load the app.
 
 ## Free-hosting caveats

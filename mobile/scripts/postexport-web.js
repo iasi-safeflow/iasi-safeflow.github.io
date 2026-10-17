@@ -1,5 +1,5 @@
 // After `expo export -p web`: make the single-page app work on GitHub Pages.
-// - 404.html = index.html, so deep links like /iasi-safeflow/review/SF-123 load the app instead of a 404 page.
+// - 404.html = index.html, so deep links like /review/SF-123 load the app instead of a 404 page.
 // - .nojekyll, so files/folders starting with "_" (Expo's _expo/) are served when deploying from a branch.
 const fs = require('fs');
 const path = require('path');

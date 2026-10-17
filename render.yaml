@@ -22,6 +22,6 @@ services:
       - key: DEMO_REVIEWER_PASSWORD
         sync: false
       - key: SAFEFLOW_ALLOWED_ORIGINS
-        sync: false # e.g. https://<github-username>.github.io  (origin only, no /iasi-safeflow path)
+        sync: false # https://iasi-safeflow.github.io  (origin only, no path)
       - key: SAFEFLOW_SEED_DEMO_DATA
         value: "1"
