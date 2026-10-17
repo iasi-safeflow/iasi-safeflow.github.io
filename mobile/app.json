@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Iași SafeFlow",
+    "slug": "iasi-safeflow",
+    "scheme": "iasisafeflow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Locația este folosită doar pentru a plasa raportul pe hartă, când alegeți „Folosește GPS”."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Locația este folosită doar pentru a plasa raportul pe hartă, când alegeți „Folosește GPS”."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false,
+      "baseUrl": "/iasi-safeflow"
+    }
+  }
+}

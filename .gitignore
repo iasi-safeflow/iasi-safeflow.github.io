@@ -1,0 +1,26 @@
+# Secrets and local config — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local databases and exports
+*.db
+*.db-journal
+*.sqlite
+exports/
+
+# Node / Expo (mobile/.gitignore covers the rest)
+node_modules/
+.expo/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
