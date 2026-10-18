@@ -1,8 +1,10 @@
 // SafeFlow service worker: lets the installed web app open without internet.
 // scripts/postexport-web.js replaces the two placeholders below at build time.
-// - Page loads: network first, falling back to the cached app shell when offline.
+// - Page loads: network first, falling back to the cached app shell when offline. The page is always revalidated
+//   with the server (GitHub Pages sends max-age=600, which would otherwise keep serving the old version).
 // - App files (/_expo/static/*, hashed and immutable): precached and served from cache.
 // - Cross-origin requests (API, map tiles): never touched, so reports are never stale and tiles are not bulk-cached.
+// - When a new build takes over, open pages are told its BUILD_ID; an older page then offers a reload (index.html).
 const BUILD_ID = '__BUILD_ID__';
 const PRECACHE = __PRECACHE__;
 const CACHE = `safeflow-${BUILD_ID}`;
@@ -11,7 +13,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(['/', ...PRECACHE]))
+      // 'reload' skips the browser's HTTP cache, so the offline copy is this build and not the previous one.
+      .then((cache) => cache.addAll(['/', ...PRECACHE].map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -22,7 +25,9 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((k) => k.startsWith('safeflow-') && k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((clients) => clients.forEach((c) => c.postMessage({ type: 'safeflow-build', build: BUILD_ID }))),
   );
 });
 
@@ -33,7 +38,7 @@ self.addEventListener('fetch', (event) => {
 
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then((res) => {
           if (res.ok && url.pathname === '/') {
             const copy = res.clone(); // clone now, before the browser consumes the body

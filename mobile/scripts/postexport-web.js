@@ -1,7 +1,8 @@
 // After `expo export -p web`: make the single-page app work on GitHub Pages and offline.
 // - 404.html = index.html, so deep links like /review/SF-123 load the app instead of a 404 page.
 // - .nojekyll, so files/folders starting with "_" (Expo's _expo/) are served when deploying from a branch.
-// - sw.js gets this build's id and the full list of app files to precache (see public/sw.js).
+// - sw.js gets this build's id and the full list of app files to precache (see public/sw.js); index.html gets the
+//   same id, so an open page can tell that a newer build has taken over.
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,6 @@ if (!fs.existsSync(index)) {
   console.error('dist/index.html not found; run `expo export -p web` first.');
   process.exit(1);
 }
-fs.copyFileSync(index, path.join(dist, '404.html'));
 fs.writeFileSync(path.join(dist, '.nojekyll'), '');
 
 function listFiles(dir) {
@@ -45,6 +45,14 @@ if (fs.existsSync(swPath)) {
     process.exit(1);
   }
   fs.writeFileSync(swPath, sw.replace('__BUILD_ID__', buildId).replace('__PRECACHE__', JSON.stringify(assets)));
+  const html = fs.readFileSync(index, 'utf8');
+  if (!html.includes('__BUILD_ID__')) {
+    console.error('dist/index.html build id placeholder not found.');
+    process.exit(1);
+  }
+  fs.writeFileSync(index, html.replace('__BUILD_ID__', buildId));
   console.log(`Wrote dist/sw.js (build ${buildId}, ${assets.length} files to precache)`);
 }
+// After index.html has its build id: deep links load the same page.
+fs.copyFileSync(index, path.join(dist, '404.html'));
 console.log('Wrote dist/404.html and dist/.nojekyll');

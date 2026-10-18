@@ -83,6 +83,11 @@ The site is also an **installable web app (PWA)**:
 - `mobile/public/manifest.json` provides the name, icons and standalone display.
 - `mobile/public/sw.js` is a small service worker. `scripts/postexport-web.js` writes a build id and the list of
   app files into it, so the app opens offline and each deploy replaces the old cache.
+- Updates: the page is always revalidated with the server, so launching the app loads the latest deploy. An app that
+  was left open (resumed from recent apps) checks for a new deploy when it returns to the foreground and then shows
+  "Este disponibilă o versiune nouă" with a **Reîncarcă** button; it never reloads by itself, so a report being
+  written is not lost. Phones still running a service worker from before this change pick it up on their next launch
+  (within about 10 minutes of a deploy, because of GitHub Pages' cache time).
 - API calls and map tiles are never cached. When there's no connection, an offline banner appears under the 112
   banner (`OfflineBanner.tsx`, using `expo-network`).
 
