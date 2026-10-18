@@ -74,6 +74,10 @@ export default function TabsLayout() {
         name="review"
         options={{ title: t.tabReview, tabBarIcon: icon('check-square'), href: isReviewer || !ready ? undefined : null }}
       />
+      <Tabs.Screen
+        name="history"
+        options={{ title: t.tabHistory, tabBarIcon: icon('activity'), href: isReviewer || !ready ? undefined : null }}
+      />
       <Tabs.Screen name="account" options={{ title: t.tabAccount, tabBarIcon: icon('user') }} />
     </Tabs>
   );

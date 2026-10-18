@@ -7,8 +7,8 @@ import sqlite3
 from fastapi import APIRouter, Depends, Query
 
 from ..assistant.config import ASSISTANT_VERSION
-from ..assistant.runner import latest_runs, pair_decisions, recheck, run_out
-from ..config import Settings
+from ..assistant.runner import latest_runs, nearby_open_ids, pair_decisions, recheck, run_out
+from ..config import Settings, log
 from ..db import iso, utcnow
 from ..deps import get_db, get_settings, require_reviewer
 from ..domain import PUBLISHING_STATUSES, TRANSITIONS, verification
@@ -130,6 +130,24 @@ def report_detail(
     return review_report_out(row, settings.secret_key, latest_runs(db, [row["id"]]).get(row["id"]))
 
 
+def _refresh_checks(db: sqlite3.Connection, report_ids: list[int]) -> None:
+    """After a reviewer decision, re-check the reports involved (unless rejected) and the open reports near them,
+    so no stored suggestion still offers a rejected report as a duplicate. The decision itself is already committed:
+    a failure here is logged and leaves the earlier results in place."""
+    try:
+        targets: list[int] = []
+        for report_id in report_ids:
+            row = dict(db.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone())
+            if row["status"] != "rejected":
+                targets.append(report_id)
+            targets.extend(nearby_open_ids(db, row))
+        now = utcnow()
+        for report_id in dict.fromkeys(targets):  # unique, in order
+            recheck(db, report_id, "reviewer_decision", now)
+    except Exception:
+        log.exception("Review assistant re-check after a reviewer decision failed; earlier results are kept.")
+
+
 @router.post("/reports/{public_id}/status")
 def change_status(
     public_id: str,
@@ -158,6 +176,8 @@ def change_status(
                VALUES (?, ?, 'status_change', ?, ?, ?, ?, ?)""",
             (row["id"], reviewer["id"], current, body.status, body.reason, body.notes.strip() or None, now),
         )
+    if "rejected" in (current, body.status):  # it leaves or joins the duplicate candidates of reports nearby
+        _refresh_checks(db, [row["id"]])
     return report_detail(public_id, reviewer, settings, db)
 
 
@@ -276,8 +296,71 @@ def decide_duplicate(
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (subject["id"], reviewer["id"], action, *change, notes, related["id"], now),
             )
-    # The decision changes duplicates and corroboration for both reports: append a fresh check for each open one.
-    for r in (newer, older):
-        if db.execute("SELECT status FROM reports WHERE id = ?", (r["id"],)).fetchone()[0] != "rejected":
-            recheck(db, r["id"], "reviewer_decision", utcnow())
+    _refresh_checks(db, [newer["id"], older["id"]])
     return report_detail(public_id, reviewer, settings, db)
+
+
+def _decision_after(db: sqlite3.Connection, run: sqlite3.Row) -> dict:
+    """The reviewer's first action on the report after a check, derived from the audit log (no manual input)."""
+    a = db.execute(
+        """SELECT a.*, rr.public_id AS related_public_id FROM review_actions a
+           LEFT JOIN reports rr ON rr.id = a.related_report_id
+           WHERE a.report_id = ? AND a.id > ? ORDER BY a.id LIMIT 1""",
+        (run["report_id"], run["last_action_id"]),
+    ).fetchone()
+    if a is None:
+        return {"kind": "pending"}
+    if a["action"] == "status_change":
+        kind = a["to_status"] if a["to_status"] in ("validated", "rejected") else "status_change"
+    else:
+        kind = a["action"]  # duplicate_link, not_duplicate, duplicate_revoke
+    return {
+        "kind": kind,
+        "to_status": a["to_status"],
+        "reason": a["reason"],
+        "related_report_id": a["related_public_id"],
+        "created_at": a["created_at"],
+    }
+
+
+DECISION_KINDS = ("pending", "validated", "rejected", "status_change", "duplicate_link", "not_duplicate", "duplicate_revoke")
+
+
+@router.get("/assistant-runs")
+def assistant_history(
+    flag: str | None = Query(default=None, max_length=40),
+    importance: str | None = Query(default=None, pattern="^(high|medium|low)$"),
+    decision: str | None = Query(default=None, pattern="^(" + "|".join(DECISION_KINDS) + ")$"),
+    limit: int = Query(default=200, ge=1, le=1000),
+    _: sqlite3.Row = Depends(require_reviewer),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Every assistant check, newest first, next to what the reviewer did afterwards. Read-only (append-only table)."""
+    sql = """SELECT ar.*, r.public_id FROM assistant_runs ar JOIN reports r ON r.id = ar.report_id"""
+    params: list = []
+    if importance:
+        sql += " WHERE ar.importance_level = ?"
+        params.append(importance)
+    rows = db.execute(sql + " ORDER BY ar.id DESC", params).fetchall()
+    out = []
+    for row in rows:
+        run = run_out(row)
+        if flag and flag not in {f["code"] for f in run["flags"]}:
+            continue
+        after = _decision_after(db, row)
+        if decision and after["kind"] != decision:
+            continue
+        out.append({
+            "id": run["id"],
+            "report_id": row["public_id"],
+            "created_at": run["created_at"],
+            "triggered_by": run["triggered_by"],
+            "assistant_version": run["assistant_version"],
+            "importance": run["importance"],
+            "flags": [{"code": f["code"], "label": f["label"]} for f in run["flags"]],
+            "duplicates": [{"public_id": d["public_id"], "level": d["level"], "score": d["score"]} for d in run["duplicates"]],
+            "decision": after,
+        })
+        if len(out) >= limit:
+            break
+    return out

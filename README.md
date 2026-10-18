@@ -49,7 +49,7 @@ Backend (in `.env` locally, set in the host dashboard in production; never commi
 | `SAFEFLOW_SECRET_KEY` | Signs session tokens. If empty, a random per-process key is used (everyone is logged out on restart). On Render it is generated automatically. |
 | `DEMO_REVIEWER_EMAIL` / `DEMO_REVIEWER_PASSWORD` | Demo reviewer account, created at startup if missing. There is no public reviewer sign-up. |
 | `SAFEFLOW_ALLOWED_ORIGINS` | Comma-separated exact browser origins allowed by CORS, e.g. `https://iasi-safeflow.github.io` (origin only, no path). Wildcards are rejected at startup. Empty = no CORS headers. |
-| `SAFEFLOW_SEED_DEMO_DATA` | `1` (default) seeds 8 labelled simulated reports **only if the database has no reports**. `0` disables. |
+| `SAFEFLOW_SEED_DEMO_DATA` | `1` (default) seeds 12 labelled simulated reports **only if the database has no reports**: a duplicate pair, a held report with a deliberately invalid licence plate, a high-importance school crossing and a held vague report. `0` disables. |
 | `SAFEFLOW_DB_PATH`, `SAFEFLOW_TOKEN_MAX_AGE`, `SAFEFLOW_REPORTS_PER_HOUR` | Optional. |
 
 App (read at **build time**):
@@ -139,6 +139,40 @@ of using the debug key.
 
 The API URL is baked in at build time (`EXPO_PUBLIC_API_URL`, default `https://iasi-safeflow-api.onrender.com`, must be HTTPS).
 
+## Reviewer workflow and review assistant
+
+**Statuses:**
+
+| From | Allowed next statuses |
+|---|---|
+| Primit | În analiză, Validat, Respins |
+| În analiză | Validat, Respins, Expirat |
+| Validat | Pregătit pentru sesizare, Rezolvat, Respins |
+| Pregătit pentru sesizare | Rezolvat, Validat |
+| Rezolvat | Validat (redeschis) |
+| Respins | În analiză (redeschis) |
+| Expirat | În analiză |
+
+The public label reads **"Verificat de un recenzent"** only for Validat, Pregătit pentru sesizare and Rezolvat. That
+means a reviewer looked at the report; it is not an official confirmation. Every other status reads "Raport
+utilizator – neverificat".
+
+**Rejecting** requires a reason: Duplicat, Nu ține de siguranța rutieră, Informații insuficiente, În afara zonei
+Iași, or Conținut abuziv / spam. The reporter sees the reason in neutral wording under "Ale mele". The reviewer's
+optional note stays private. Reopening is allowed. Every change goes to the append-only audit log.
+
+**Held reports:** a new report flagged by the assistant (personal data, abusive language, vague text, possibly not
+about road safety, or a possible emergency) is kept off the public map and every public endpoint. It is published
+only when a reviewer moves it to În analiză or Validat. The reporter sees "În așteptare – va fi publicat după
+verificare".
+
+**Review assistant ("Analiză automată"):** explainable rules and character 3-gram text similarity, in pure Python,
+with no external AI service or API key. It suggests duplicates, an importance level (Ridicată / Medie / Scăzută) with
+a "De ce?" breakdown, and problem flags. It never changes a status or notifies anyone. Its results are labelled
+"Sugestie automată – nu este o verificare" and are visible to reviewers only. The reviewer-only **Istoric AI** tab
+lists every check and what the reviewer did next. Formulas, weights and limitations are in
+[docs/ASSISTANT.md](docs/ASSISTANT.md).
+
 ## Free-hosting caveats
 
 - **Render's free plan sleeps** after a period of inactivity. The first request afterwards can take up to about a
@@ -166,6 +200,7 @@ No code from the AGPL-3.0 Iași Digital repository is included.
 
 ## Limitations
 
-Hackathon prototype. There is no AI scoring, duplicate detection, or authority integration in this build, and no
-production-grade GDPR compliance. Referral statuses are set by a human reviewer and do **not** mean that an
+Hackathon prototype. The review assistant is rule-based and has not been validated against crash data. Its
+importance level is a triage suggestion, not a crash prediction (see the limitations in
+[docs/ASSISTANT.md](docs/ASSISTANT.md)). There is no authority integration and no production-grade GDPR compliance. Referral statuses are set by a human reviewer and do **not** mean that an
 authority received anything.

@@ -4,6 +4,7 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
+from app.assistant.runner import run_out
 from app.db import connect
 from app.main import create_app
 from app.seed import DEMO_REPORTS, SIMULATED_PREFIX, seed_demo_reports
@@ -28,8 +29,31 @@ def test_seed_fills_empty_database_with_labelled_simulated_reports(settings):
         assert r["description"].startswith(SIMULATED_PREFIX)
         assert r["status"] in ("submitted", "under_review")  # never implies referral/authority action
     public = client.get("/public/reports").json()
-    assert len(public) == len(DEMO_REPORTS)
+    assert {p["public_id"] for p in public} == {d[0] for d in DEMO_REPORTS} - {"SF-TESTDEMB", "SF-TESTDEMD"}  # held
     assert all(p["is_simulated"] and p["source_type"] == "simulated" for p in public)
+
+
+def test_seed_demo_shows_each_assistant_case(settings):
+    create_app(replace(settings, seed_demo_data=True))
+    conn = connect(settings.database_path)
+    try:
+        runs = {
+            r["public_id"]: run_out(r)
+            for r in conn.execute(
+                """SELECT ar.*, rp.public_id FROM assistant_runs ar JOIN reports rp ON rp.id = ar.report_id
+                   WHERE ar.id IN (SELECT MAX(id) FROM assistant_runs GROUP BY report_id)"""
+            ).fetchall()
+        }
+    finally:
+        conn.close()
+    assert len(runs) == len(DEMO_REPORTS)
+    assert [d["public_id"] for d in runs["SF-TESTDEMA"]["duplicates"]] == ["SF-TESTDEM2"]
+    assert runs["SF-TESTDEMA"]["duplicates"][0]["level"] == "probable"
+    assert [f["code"] for f in runs["SF-TESTDEMB"]["flags"]] == ["personal_data"]
+    assert runs["SF-TESTDEMC"]["importance"]["level"] == "high"
+    assert [f["code"] for f in runs["SF-TESTDEMD"]["flags"]] == ["vague"]
+    flagged = {pid for pid, run in runs.items() if run["flags"]}
+    assert flagged == {"SF-TESTDEMB", "SF-TESTDEMD"}
 
 
 def test_seed_skips_database_that_already_has_reports(settings, client, reporter_token):

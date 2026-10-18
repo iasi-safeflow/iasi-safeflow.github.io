@@ -79,9 +79,12 @@ MIGRATIONS: tuple[tuple[str, ...], ...] = (
                importance_level TEXT NOT NULL,
                factors_json TEXT NOT NULL,
                flags_json TEXT NOT NULL,
-               duplicates_json TEXT NOT NULL
+               duplicates_json TEXT NOT NULL,
+               -- Newest audit entry when the check ran: the reviewer's next decision is the first entry after it.
+               last_action_id INTEGER NOT NULL DEFAULT 0
            )""",
         "CREATE INDEX idx_assistant_runs_report ON assistant_runs (report_id, id)",
+        "CREATE INDEX idx_review_actions_report ON review_actions (report_id, id)",
         """CREATE TRIGGER assistant_runs_no_update BEFORE UPDATE ON assistant_runs
            BEGIN SELECT RAISE(ABORT, 'assistant history is append-only'); END""",
         """CREATE TRIGGER assistant_runs_no_delete BEFORE DELETE ON assistant_runs

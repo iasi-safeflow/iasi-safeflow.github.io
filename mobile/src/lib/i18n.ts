@@ -60,6 +60,7 @@ export const t = {
   tabMineShort: 'Ale mele',
   tabReview: 'Recenzie',
   tabAccount: 'Cont',
+  tabHistory: 'Istoric AI',
 
   sourceUserReport: 'Raport utilizator – neverificat',
   sourceSimulated: 'Date simulate',
@@ -138,6 +139,40 @@ export const t = {
   rejectConfirm: 'Respinge raportul',
   cancel: 'Anulează',
   reason: 'Motiv',
+
+  // Review assistant: every result is a suggestion and is labelled as one.
+  assistantTitle: 'Analiză automată',
+  assistantDisclaimer: 'Sugestie automată – nu este o verificare',
+  importance: 'Importanță',
+  importanceNote: 'Importanța este o sugestie de prioritizare, nu o dovadă că locul este periculos.',
+  why: 'De ce?',
+  hideWhy: 'Ascunde detaliile',
+  flagsTitle: 'Semnale',
+  noFlags: 'Niciun semnal.',
+  flagCall112: 'Dacă este o urgență, sunați la 112',
+  duplicatesTitle: 'Posibile duplicate',
+  noDuplicates: 'Niciun duplicat sugerat.',
+  thisReport: 'Acest raport',
+  linkDuplicate: 'Leagă ca duplicat',
+  notDuplicate: 'Nu e duplicat',
+  revokeDuplicate: 'Anulează legătura',
+  linkHint: 'Dacă le legați, raportul mai nou ({id}) este respins cu motivul „Duplicat”. Se poate anula.',
+  duplicateUnavailable: 'Unul dintre rapoarte este respins; redeschideți-l înainte de a le lega.',
+  linkedAsDuplicateOf: 'Legat ca duplicat al raportului',
+  linkedDuplicate: 'Duplicat legat de acest raport',
+  noAnalysis: 'Nicio analiză automată pentru acest raport.',
+  assistantVersion: 'Versiune',
+  checkedAt: 'Verificat',
+  checksCount: 'verificări',
+  sortImportance: 'După importanță',
+  heldFilter: 'În așteptare (ascunse)',
+  historyIntro:
+    'Analiză automată explicabilă (reguli + similaritate de text). Deciziile recenzenților pot fi folosite ulterior pentru a antrena un model.',
+  historyEmpty: 'Nicio verificare pentru aceste filtre.',
+  reviewerDecision: 'Decizia recenzentului',
+  filterFlag: 'Semnal',
+  filterImportance: 'Importanță',
+  filterDecision: 'Decizie',
   audit: 'Jurnal de audit',
   auditEmpty: 'Nicio acțiune încă.',
   reporterRef: 'Raportor (pseudonim)',
@@ -158,6 +193,75 @@ export const t = {
   installApk: 'Descarcă aplicația Android (APK)',
   appVersion: 'Versiune aplicație',
 };
+
+export const IMPORTANCE_LABELS: Record<string, string> = { high: 'Ridicată', medium: 'Medie', low: 'Scăzută' };
+
+export const DUPLICATE_LEVEL_LABELS: Record<string, string> = {
+  probable: 'Probabil duplicat',
+  possible: 'Posibil duplicat',
+};
+
+export const DUPLICATE_REASON_LABELS: Record<string, string> = {
+  similar_text: 'text asemănător',
+  very_close: 'la cel mult 50 m',
+  same_category: 'aceeași categorie',
+};
+
+export const FLAG_LABELS: Record<string, string> = {
+  personal_data: 'Date personale',
+  abusive: 'Limbaj abuziv',
+  vague: 'Descriere vagă',
+  not_road_safety: 'Posibil fără legătură rutieră',
+  possible_emergency: 'Posibilă urgență – verificați',
+};
+
+export const EVIDENCE_KIND_LABELS: Record<string, string> = {
+  plate: 'număr de înmatriculare',
+  phone: 'telefon',
+  email: 'e-mail',
+};
+
+export const TRIGGER_LABELS: Record<string, string> = {
+  created: 'raport nou',
+  nearby_report: 'raport nou în apropiere',
+  reviewer_decision: 'după o decizie a recenzentului',
+};
+
+export const DECISION_LABELS: Record<string, string> = {
+  pending: 'Nicio decizie încă',
+  validated: 'Validat',
+  rejected: 'Respins',
+  status_change: 'Status schimbat',
+  duplicate_link: 'Duplicat acceptat',
+  not_duplicate: 'Marcat „Nu e duplicat”',
+  duplicate_revoke: 'Legătură de duplicat anulată',
+};
+
+// One "De ce?" line per importance factor; `detail` comes from backend/app/assistant/priority.py.
+export function factorText(code: string, detail: unknown): string {
+  switch (code) {
+    case 'category':
+      return `Categorie: ${CATEGORY_LABELS[String(detail)] ?? String(detail)}`;
+    case 'vulnerable_users': {
+      const words = Array.isArray(detail) ? detail.map(String) : [];
+      return words.length ? `Utilizatori vulnerabili menționați: ${words.join(', ')}` : 'Nu sunt menționați utilizatori vulnerabili';
+    }
+    case 'corroboration':
+      return `Rapoarte similare în apropiere (30 de zile): ${Number(detail)}`;
+    case 'recency': {
+      const days = Math.round(Number(detail));
+      return days < 1 ? 'Observat în ultima zi' : `Observat acum ${days} ${days === 1 ? 'zi' : 'zile'}`;
+    }
+    case 'location_precision':
+      return typeof detail === 'number' ? `Precizie locație: ±${Math.round(detail)} m` : 'Fără precizie GPS (punct pe hartă)';
+    case 'description': {
+      const d = (detail ?? {}) as { chars?: number; words?: number };
+      return `Descriere: ${d.chars ?? 0} caractere, ${d.words ?? 0} cuvinte`;
+    }
+    default:
+      return code;
+  }
+}
 
 // Source and verification labels: "Date simulate" and/or "Verificat de un recenzent", otherwise
 // "Raport utilizator – neverificat". Verified only means a reviewer validated it, never an official confirmation.

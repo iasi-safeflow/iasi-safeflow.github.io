@@ -108,6 +108,7 @@ export type ReviewReport = OwnReport & {
   allowed_next: string[];
   source_type: string;
   reporter_ref: string;
+  assistant: AssistantSummary | null;
 };
 
 export type AuditEntry = {
@@ -118,6 +119,78 @@ export type AuditEntry = {
   from_status: string | null;
   to_status: string | null;
   reason: string | null;
+  related_report_id: string | null;
   notes: string | null;
   created_at: string;
+};
+
+// ---- Review assistant (suggestions only; reviewers decide) ----
+
+export type ImportanceLevel = 'high' | 'medium' | 'low';
+export type DuplicateLevel = 'probable' | 'possible';
+
+export type AssistantSummary = {
+  importance_score: number;
+  importance_level: ImportanceLevel;
+  flags: string[];
+  duplicate_level: DuplicateLevel | null;
+  checked_at: string;
+};
+
+export type Evidence = { text: string; start: number; end: number; kind?: string };
+export type AssistantFlag = { code: string; label: string; evidence: Evidence[]; detail: string | null };
+export type Factor = { code: string; points: number; detail: unknown };
+export type Importance = { score: number; level: ImportanceLevel; factors: Factor[] };
+
+export type DuplicateCandidate = {
+  public_id: string;
+  score: number;
+  level: DuplicateLevel;
+  distance_m: number;
+  text_similarity: number;
+  same_category: boolean;
+  reasons: string[];
+  decision: string | null;
+  report: {
+    public_id: string;
+    category: string;
+    description: string;
+    status: string;
+    observed_at: string;
+    created_at: string;
+    is_simulated: boolean;
+  };
+};
+
+export type AssistantRun = {
+  id: number;
+  triggered_by: string;
+  assistant_version: string;
+  created_at: string;
+  importance: Importance;
+  flags: AssistantFlag[];
+  duplicates: DuplicateCandidate[];
+  confirmed_links: { public_id: string; role: 'original' | 'duplicate' }[];
+};
+
+export type AssistantAnalysis = { latest: AssistantRun | null; checks: number; current_version: string };
+
+export type ReviewerDecision = {
+  kind: string;
+  to_status?: string | null;
+  reason?: string | null;
+  related_report_id?: string | null;
+  created_at?: string;
+};
+
+export type HistoryRow = {
+  id: number;
+  report_id: string;
+  created_at: string;
+  triggered_by: string;
+  assistant_version: string;
+  importance: Importance;
+  flags: { code: string; label: string }[];
+  duplicates: { public_id: string; level: DuplicateLevel; score: number }[];
+  decision: ReviewerDecision;
 };

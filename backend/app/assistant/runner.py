@@ -58,8 +58,8 @@ def record(db: sqlite3.Connection, report_id: int, triggered_by: str, result: di
     """Append a result. Call inside the caller's transaction."""
     cur = db.execute(
         """INSERT INTO assistant_runs (report_id, triggered_by, assistant_version, created_at, importance_score,
-               importance_level, factors_json, flags_json, duplicates_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               importance_level, factors_json, flags_json, duplicates_json, last_action_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(id), 0) FROM review_actions))""",
         (
             report_id, triggered_by, config.ASSISTANT_VERSION, iso(now),
             result["importance"]["score"], result["importance"]["level"],
@@ -77,17 +77,22 @@ def recheck(db: sqlite3.Connection, report_id: int, triggered_by: str, now: date
         record(db, report_id, triggered_by, assess(db, dict(row), now), now)
 
 
-def recheck_nearby(db: sqlite3.Connection, report: dict, now: datetime) -> int:
-    """A new report can corroborate or duplicate open reports around it: give each of them a fresh check."""
-    nearby = [
-        r for r in _window_rows(db, report["observed_at"])
+def nearby_open_ids(db: sqlite3.Connection, report: dict) -> list[int]:
+    """Open reports (other than `report`) within the duplicate radius and time window of `report`."""
+    return [
+        r["id"] for r in _window_rows(db, report["observed_at"])
         if r["id"] != report["id"]
         and r["status"] in config.OPEN_STATUSES
         and haversine_m(report["lat"], report["lon"], r["lat"], r["lon"]) <= config.DUPLICATE_RADIUS_M
     ]
-    for r in nearby:
-        recheck(db, r["id"], "nearby_report", now)
-    return len(nearby)
+
+
+def recheck_nearby(db: sqlite3.Connection, report: dict, now: datetime, triggered_by: str = "nearby_report") -> int:
+    """A new or changed report can add or remove a duplicate or corroboration around it: re-check open reports there."""
+    ids = nearby_open_ids(db, report)
+    for report_id in ids:
+        recheck(db, report_id, triggered_by, now)
+    return len(ids)
 
 
 def latest_runs(db: sqlite3.Connection, report_ids: list[int]) -> dict[int, sqlite3.Row]:

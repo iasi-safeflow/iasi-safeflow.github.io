@@ -144,6 +144,25 @@ def test_not_duplicate_is_recorded_and_pair_not_suggested_again(client, settings
     assert [(e["action"], e["related_report_id"]) for e in log] == [("not_duplicate", new)]
 
 
+def test_link_refreshes_other_reports_that_suggested_the_duplicate(client, reporter_token, reviewer_token, pair):
+    old, new = pair
+    third = _submit(client, reporter_token, description="Groapă mare pe banda dreaptă lângă stația de tramvai!", lat=47.16244)
+    assert new in [d["public_id"] for d in _analysis(client, reviewer_token, third)["latest"]["duplicates"]]
+    _decide(client, reviewer_token, new, old, "link")
+    latest = _analysis(client, reviewer_token, third)["latest"]
+    assert latest["triggered_by"] == "reviewer_decision"
+    assert new not in [d["public_id"] for d in latest["duplicates"]]  # rejected now, no longer offered
+
+
+def test_rejecting_and_reopening_refresh_nearby_suggestions(client, reviewer_token, pair):
+    old, new = pair
+    h = auth_header(reviewer_token)
+    client.post(f"/review/reports/{new}/status", json={"status": "rejected", "reason": "insufficient_info"}, headers=h)
+    assert _analysis(client, reviewer_token, old)["latest"]["duplicates"] == []
+    client.post(f"/review/reports/{new}/status", json={"status": "under_review"}, headers=h)
+    assert [d["public_id"] for d in _analysis(client, reviewer_token, old)["latest"]["duplicates"]] == [new]
+
+
 def test_duplicate_decision_errors(client, reporter_token, reviewer_token, pair):
     old, new = pair
     assert _decide(client, reviewer_token, old, old, "link").status_code == 422

@@ -2,17 +2,21 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { Button, Card, Chip, ErrorText, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
+import { DuplicatePill, FlagPill, ImportancePill } from '@/components/assistant';
+import { Button, Card, Chip, ErrorText, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { CATEGORY_LABELS, formatDateTime, STATUS_LABELS, t } from '@/lib/i18n';
+import { useTheme } from '@/lib/themeMode';
 
 export default function ReviewQueueScreen() {
   const { user, token, ready } = useAuth();
+  const { colors } = useTheme();
   const styles = useStyles();
   const [items, setItems] = useState<ReviewReport[]>([]);
   const [status, setStatus] = useState<string | null>('submitted');
-  const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
+  const [heldOnly, setHeldOnly] = useState(false);
+  const [sort, setSort] = useState<'newest' | 'oldest' | 'importance'>('newest');
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -20,7 +24,7 @@ export default function ReviewQueueScreen() {
     if (!token || user?.role !== 'reviewer') return;
     setRefreshing(true);
     try {
-      const q = new URLSearchParams({ sort, ...(status ? { status } : {}) }).toString();
+      const q = new URLSearchParams({ sort, ...(status ? { status } : {}), ...(heldOnly ? { visibility: 'held' } : {}) }).toString();
       setItems(await api<ReviewReport[]>(`/review/reports?${q}`, { token }));
       setError('');
     } catch (e) {
@@ -28,7 +32,7 @@ export default function ReviewQueueScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [token, user, status, sort]);
+  }, [token, user, status, sort, heldOnly]);
 
   useFocusEffect(
     useCallback(() => {
@@ -61,8 +65,12 @@ export default function ReviewQueueScreen() {
         ))}
       </View>
       <View style={styles.chips}>
+        <Chip label={t.heldFilter} selected={heldOnly} onPress={() => setHeldOnly(!heldOnly)} />
+      </View>
+      <View style={styles.chips}>
         <Chip label="Cele mai noi" selected={sort === 'newest'} onPress={() => setSort('newest')} />
         <Chip label="Cele mai vechi" selected={sort === 'oldest'} onPress={() => setSort('oldest')} />
+        <Chip label={t.sortImportance} selected={sort === 'importance'} onPress={() => setSort('importance')} />
       </View>
       <ErrorText>{error}</ErrorText>
       {items.length === 0 && !error && <Text style={styles.muted}>{t.queueEmpty}</Text>}
@@ -80,6 +88,21 @@ export default function ReviewQueueScreen() {
             <Text style={styles.muted}>
               {t.created}: {formatDateTime(r.created_at)} · {r.reporter_ref}
             </Text>
+            {r.assistant && (
+              <View style={styles.row}>
+                <ImportancePill level={r.assistant.importance_level} score={r.assistant.importance_score} />
+                {r.assistant.duplicate_level && <DuplicatePill level={r.assistant.duplicate_level} />}
+                {r.assistant.flags.map((f) => (
+                  <FlagPill key={f} code={f} />
+                ))}
+              </View>
+            )}
+            {r.public_visibility === 'held' && (
+              <View style={[styles.row, { gap: 6, marginTop: 4 }]}>
+                <Icon name="eye-off" size={14} color={colors.muted} />
+                <Text style={[styles.muted, { fontSize: 13 }]}>{t.heldFilter}</Text>
+              </View>
+            )}
             <View style={styles.row}>
               <SourceBadge simulated={r.is_simulated} verification={r.verification} />
             </View>

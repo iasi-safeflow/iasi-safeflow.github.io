@@ -3,11 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { LeafletMap } from '@/components/LeafletMap';
+import { AssistantPanel, evidenceRanges, HighlightedText } from '@/components/assistant';
 import { RejectSheet } from '@/components/RejectSheet';
 import { Button, Card, ErrorText, Field, Icon, IconName, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
-import { api, AuditEntry, errorText, ReviewReport } from '@/lib/api';
+import { api, AssistantAnalysis, AuditEntry, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { CATEGORY_LABELS, formatDateTime, REJECTION_REASON_LABELS, STATUS_LABELS, t } from '@/lib/i18n';
+import { CATEGORY_LABELS, DECISION_LABELS, formatDateTime, REJECTION_REASON_LABELS, STATUS_LABELS, t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { StatusKey } from '@/theme';
 
@@ -44,15 +45,19 @@ export default function ReviewDetailScreen() {
   const [mapLocked, setMapLocked] = useState(false); // two fingers on the map: the page stops scrolling
   const [rejecting, setRejecting] = useState(false);
   const [rejectError, setRejectError] = useState('');
+  const [analysis, setAnalysis] = useState<AssistantAnalysis | null>(null);
+  const [assistantError, setAssistantError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [r, a] = await Promise.all([
+      const [r, a, an] = await Promise.all([
         api<ReviewReport>(`/review/reports/${id}`, { token }),
         api<AuditEntry[]>(`/review/reports/${id}/audit`, { token }),
+        api<AssistantAnalysis>(`/review/reports/${id}/assistant`, { token }),
       ]);
       setReport(r);
       setAudit(a);
+      setAnalysis(an);
       setError('');
     } catch (e) {
       setError(errorText(e));
@@ -91,6 +96,19 @@ export default function ReviewDetailScreen() {
       await load();
     } catch (e) {
       setRejectError(errorText(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const decideDuplicate = async (otherId: string, action: 'link' | 'not_duplicate' | 'revoke') => {
+    setBusy(`${action}:${otherId}`);
+    setAssistantError('');
+    try {
+      await api(`/review/reports/${id}/duplicates/${otherId}`, { method: 'POST', token, body: { action } });
+      await load();
+    } catch (e) {
+      setAssistantError(errorText(e));
     } finally {
       setBusy(null);
     }
@@ -149,10 +167,8 @@ export default function ReviewDetailScreen() {
 
       <Card>
         <Text style={styles.label}>{CATEGORY_LABELS[report.category] ?? report.category}</Text>
-        {/* User text is shown as-is (untrusted data, plain text only). */}
-        <Text style={styles.body} selectable>
-          {report.description}
-        </Text>
+        {/* User text is shown as-is (untrusted data, plain text only); flagged passages are highlighted. */}
+        <HighlightedText text={report.description} ranges={evidenceRanges(analysis?.latest?.flags ?? [])} style={styles.body} />
         <Text style={[styles.muted, { marginTop: 8 }]}>
           {t.observed}: {formatDateTime(report.observed_at)}
         </Text>
@@ -167,6 +183,9 @@ export default function ReviewDetailScreen() {
           {t.reporterRef}: {report.reporter_ref}
         </Text>
       </Card>
+
+      <AssistantPanel analysis={analysis} report={report} busy={busy} onDecide={decideDuplicate} />
+      <ErrorText>{assistantError}</ErrorText>
 
       <LeafletMap
         style={{ height: 220, borderRadius: 20 }}
@@ -202,11 +221,19 @@ export default function ReviewDetailScreen() {
       {audit.length === 0 && <Text style={styles.muted}>{t.auditEmpty}</Text>}
       {audit.map((a) => (
         <Card key={a.id}>
-          <View style={[styles.row, { gap: 6 }]}>
-            <Text style={styles.body}>{STATUS_LABELS[a.from_status ?? ''] ?? a.from_status}</Text>
-            <Icon name="arrow-right" size={16} color={colors.muted} />
-            <Text style={styles.body}>{STATUS_LABELS[a.to_status ?? ''] ?? a.to_status}</Text>
-          </View>
+          {a.action !== 'status_change' && (
+            <Text style={styles.label}>
+              {DECISION_LABELS[a.action] ?? a.action}
+              {a.related_report_id ? ` · ${a.related_report_id}` : ''}
+            </Text>
+          )}
+          {a.to_status && (
+            <View style={[styles.row, { gap: 6 }]}>
+              <Text style={styles.body}>{STATUS_LABELS[a.from_status ?? ''] ?? a.from_status}</Text>
+              <Icon name="arrow-right" size={16} color={colors.muted} />
+              <Text style={styles.body}>{STATUS_LABELS[a.to_status] ?? a.to_status}</Text>
+            </View>
+          )}
           <Text style={styles.muted}>
             {formatDateTime(a.created_at)} · {a.reviewer_email}
           </Text>
