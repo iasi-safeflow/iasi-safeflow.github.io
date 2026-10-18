@@ -1,6 +1,8 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
 
+import { InstallCard } from '@/components/InstallCard';
 import { Button, Card, styles } from '@/components/ui';
 import { API_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -22,13 +24,17 @@ export default function AccountScreen() {
           <Button title={t.register} variant="secondary" onPress={() => router.push('/register')} />
         </>
       )}
+      <InstallCard />
       <Text style={styles.h2}>Despre SafeFlow</Text>
       <Text style={styles.body}>
         Iași SafeFlow este un prototip pentru semnalarea problemelor de siguranță rutieră non-urgente. Un raport este o
         observație, nu o dovadă că locul cauzează accidente. Aplicația nu este un serviciu de urgență și nu contactează
         112, poliția sau alte autorități.
       </Text>
-      <Text style={[styles.muted, { marginTop: 16 }]}>Server API: {API_URL}</Text>
+      <Text style={[styles.muted, { marginTop: 16 }]}>
+        {t.appVersion}: {Constants.expoConfig?.version ?? '?'}
+      </Text>
+      <Text style={styles.muted}>Server API: {API_URL}</Text>
       <Text style={styles.muted}>Hartă: © contribuitorii OpenStreetMap, Leaflet.</Text>
     </ScrollView>
   );

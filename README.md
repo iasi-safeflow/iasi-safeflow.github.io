@@ -78,6 +78,62 @@ GitHub Pages serves the site at the root of `https://iasi-safeflow.github.io/` (
 the site would live under `/<repo-name>/`: set `experiments.baseUrl` in `mobile/app.json` accordingly. `404.html` is a copy of
 `index.html` so deep links load the app.
 
+The site is also an **installable web app (PWA)**:
+- `mobile/public/manifest.json` provides the name, icons and standalone display.
+- `mobile/public/sw.js` is a small service worker. `scripts/postexport-web.js` writes a build id and the list of
+  app files into it, so the app opens offline and each deploy replaces the old cache.
+- API calls and map tiles are never cached. When there's no connection, an offline banner appears under the 112
+  banner (`OfflineBanner.tsx`, using `expo-network`).
+
+## Install on Android
+
+> Demo app with test data only. It is not an emergency service: for emergencies call **112**.
+
+**Option 1: Android app (APK).** Behaves like any installed app.
+1. On the phone, open https://iasi-safeflow.github.io → **Cont** → **Descarcă aplicația Android (APK)**, or go
+   directly to the latest release on the repository's GitHub **Releases** page.
+2. When Android asks, allow **Chrome → Install unknown apps** (once), then tap **Install**.
+3. **Updates:** install the newer APK over the old one. Your data stays, because every APK is signed with the same
+   SafeFlow release key. The installed version is shown under **Cont → Versiune aplicație**.
+
+**Option 2: installable website (PWA).** In Chrome open https://iasi-safeflow.github.io → menu **⋮ → Install app**
+(or **Cont → Instalează din browser**). It updates itself on every deploy.
+
+### Building the APK (maintainers, Windows)
+
+`cd mobile; npm run build:android` creates `mobile/release/iasi-safeflow-<version>.apk` (git-ignored).
+
+**Storage:** the script writes nothing to C:.
+
+| What | Location |
+|---|---|
+| Android SDK | `D:\Android\Sdk` (a copy of Android Studio's SDK) |
+| Gradle cache, temp files, npm and Expo caches, Android user data | `D:\safeflow-build\...` |
+| JDK | Android Studio's JBR (only read) |
+
+**Windows path-length workarounds:**
+- The build runs in a short mirror folder `D:\sf`.
+- It targets `arm64-v8a` only.
+- It uses legacy native-library packaging.
+- `react-native-gesture-handler` generates object paths longer than 260 characters, so Windows long paths must be
+  enabled (`LongPathsEnabled=1`). The SDK's CMake 3.22.1 must also use **ninja ≥ 1.12**: replace
+  `D:\Android\Sdk\cmake\3.22.1\bin\ninja.exe` with ninja 1.13.2 from the official ninja-build GitHub release (the
+  original is kept as `ninja-1.10.2.exe`).
+
+**Signing:** release builds are signed by `plugins/withReleaseSigning.js` with the key
+`D:\safeflow-keys\safeflow-release.jks`. Its password and alias are read from
+`D:\safeflow-build\gradle-home\gradle.properties`, which is never committed. To create both once, run
+`powershell -ExecutionPolicy Bypass -File mobile\scripts\make-release-key.ps1`. If the four `SAFEFLOW_RELEASE_*` properties are missing, the build fails instead
+of using the debug key.
+
+> **Back up the key file and its password.** Without them, future APKs can't be installed over existing ones.
+
+**Before each release:**
+- bump `expo.version` and `expo.android.versionCode` in `mobile/app.json`;
+- upload `release/iasi-safeflow.apk` to a new GitHub Release (the web app links to `releases/latest/download/iasi-safeflow.apk`).
+
+The API URL is baked in at build time (`EXPO_PUBLIC_API_URL`, default `https://iasi-safeflow-api.onrender.com`, must be HTTPS).
+
 ## Free-hosting caveats
 
 - **Render's free plan sleeps** after a period of inactivity. The first request afterwards can take up to about a

@@ -112,6 +112,13 @@ export const t = {
   genericError: 'A apărut o eroare.',
   retry: 'Reîncearcă',
   loading: 'Se încarcă…',
+
+  offline: 'Fără conexiune la internet. Rapoartele și harta au nevoie de internet; apelul la 112 funcționează.',
+  installTitle: 'Instalează aplicația',
+  installBody: 'Adăugați SafeFlow pe ecranul principal, ca pe o aplicație obișnuită.',
+  installPwa: 'Instalează din browser',
+  installApk: 'Descarcă aplicația Android (APK)',
+  appVersion: 'Versiune aplicație',
 };
 
 export function formatDateTime(iso: string): string {
