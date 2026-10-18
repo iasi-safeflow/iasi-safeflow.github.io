@@ -6,7 +6,19 @@ import { StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/lib/themeMode';
 import type { MapMarker, MapProps } from './LeafletMap';
-import { APPROX_RADIUS_M, MAP_CSS, mapVars, pinSvg, SELECTED_Y, TILE_ATTRIBUTION, TILE_URL } from './mapTheme';
+import {
+  APPROX_RADIUS_M,
+  COOP_HINT_HTML,
+  COOP_IDLE_MS,
+  COOP_PULSE_MS,
+  COOP_SWIPE_PX,
+  MAP_CSS,
+  mapVars,
+  pinSvg,
+  SELECTED_Y,
+  TILE_ATTRIBUTION,
+  TILE_URL,
+} from './mapTheme';
 
 // Web counterpart of LeafletMap.tsx: same props, Leaflet bundled from npm and rendered directly in the page.
 // Tiles follow the OSM tile usage policy (attribution shown, light demo use only).
@@ -22,7 +34,20 @@ function addMapCss() {
   cssAdded = true;
 }
 
-export function LeafletMap({ markers = [], selectedId = null, onSelect, pick = null, pickable = false, onPick, center, style }: MapProps) {
+// Watermark only where touch is the main input (phones, tablets); computers with a mouse never see it.
+const touchFirst = () => typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+
+export function LeafletMap({
+  markers = [],
+  selectedId = null,
+  onSelect,
+  pick = null,
+  pickable = false,
+  onPick,
+  center,
+  style,
+  cooperativeGestures = false,
+}: MapProps) {
   const { colors, dark } = useTheme();
   const host = useRef<HTMLElement | null>(null);
   const map = useRef<L.Map | null>(null);
@@ -38,8 +63,8 @@ export function LeafletMap({ markers = [], selectedId = null, onSelect, pick = n
     if (!el) return;
     addMapCss();
     el.classList.add('sf-map');
-    // No wheel zoom: on web the map sits inside scrolling forms and would swallow page scrolling.
-    const m = L.map(el, { zoomControl: false, scrollWheelZoom: false }).setView([initial.lat, initial.lon], initial.zoom ?? 13);
+    // The mouse wheel over the map zooms it; outside the map the page scrolls as usual.
+    const m = L.map(el, { zoomControl: false }).setView([initial.lat, initial.lon], initial.zoom ?? 13);
     L.control.zoom({ position: 'topright' }).addTo(m);
     L.tileLayer(TILE_URL, {
       maxZoom: 19,
@@ -61,6 +86,99 @@ export function LeafletMap({ markers = [], selectedId = null, onSelect, pick = n
       map.current = null;
     };
   }, [initial]);
+
+  // Two-finger mode, same rules as the phone app: a touch with one finger is left to the page (the mouse still
+  // drags with one button), two fingers move and zoom the map (Leaflet's pinch handler also pans) and the page
+  // stays still. Capture listeners run before Leaflet's own handlers on the container.
+  useEffect(() => {
+    const m = map.current;
+    const el = host.current;
+    if (!m || !el || !cooperativeGestures) return;
+    el.classList.add('sf-coop');
+    let hint: HTMLDivElement | null = null;
+    if (touchFirst()) {
+      hint = document.createElement('div');
+      hint.innerHTML = COOP_HINT_HTML;
+      el.appendChild(hint);
+    }
+    let touching = false;
+    let idle = true;
+    let pulsing = false;
+    let pulsed = false;
+    let twoFingers = false;
+    let start = { x: 0, y: 0 };
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let pulseTimer: ReturnType<typeof setTimeout> | undefined;
+    const draw = () => {
+      if (hint) hint.className = 'sf-hint' + (pulsing ? ' sf-pulse' : idle ? '' : ' sf-off');
+    };
+    // A one-finger swipe briefly shows the watermark at full strength, once per gesture.
+    const pulse = () => {
+      if (pulsed) return;
+      pulsed = pulsing = true;
+      draw();
+      clearTimeout(pulseTimer);
+      pulseTimer = setTimeout(() => {
+        pulsing = false;
+        if (!touching) {
+          clearTimeout(idleTimer);
+          idle = true;
+        }
+        draw();
+      }, COOP_PULSE_MS);
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') m.dragging.disable();
+      else m.dragging.enable();
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      m.dragging.disable();
+      if (!touching) {
+        pulsed = twoFingers = false;
+        start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      touching = true;
+      idle = false;
+      clearTimeout(idleTimer);
+      if (e.touches.length >= 2) twoFingers = true;
+      draw();
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+      const t = e.touches[0];
+      if (!twoFingers && (Math.abs(t.clientX - start.x) > COOP_SWIPE_PX || Math.abs(t.clientY - start.y) > COOP_SWIPE_PX)) pulse();
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length > 0) return;
+      touching = false;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        idle = true;
+        draw();
+      }, COOP_IDLE_MS);
+    };
+    draw();
+    el.addEventListener('pointerdown', onPointerDown, true);
+    el.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+    el.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+    el.addEventListener('touchend', onTouchEnd, true);
+    el.addEventListener('touchcancel', onTouchEnd, true);
+    return () => {
+      clearTimeout(idleTimer);
+      clearTimeout(pulseTimer);
+      el.removeEventListener('pointerdown', onPointerDown, true);
+      el.removeEventListener('touchstart', onTouchStart, true);
+      el.removeEventListener('touchmove', onTouchMove, true);
+      el.removeEventListener('touchend', onTouchEnd, true);
+      el.removeEventListener('touchcancel', onTouchEnd, true);
+      hint?.remove();
+      el.classList.remove('sf-coop');
+      m.dragging.enable();
+    };
+  }, [cooperativeGestures]);
 
   useEffect(() => {
     const el = host.current;
