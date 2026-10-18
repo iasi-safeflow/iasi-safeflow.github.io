@@ -92,8 +92,12 @@ The site is also an **installable web app (PWA)**:
 **Option 1: Android app (APK).** Behaves like any installed app.
 1. On the phone, open https://iasi-safeflow.github.io → **Cont** → **Descarcă aplicația Android (APK)**, or go
    directly to the latest release on the repository's GitHub **Releases** page.
-2. When Android asks, allow **Chrome → Install unknown apps** (once), then tap **Install**.
-3. **Updates:** install the newer APK over the old one. Your data stays, because every APK is signed with the same
+2. Open the downloaded file (from Chrome's download message, or from the **Downloads**/**Files** app).
+3. When Android asks, tap **Settings**, turn on **Allow from this source** for the app that opened the file (Chrome,
+   or Files/Download Manager), go back, and tap **Install**. This is needed only once per app.
+4. **Google Play Protect** then shows **App scan recommended**, because the app isn't from the Play Store. Either tap
+   **Scan app** (this sends the APK to Google for a check), or tap **More details → Install without scanning**.
+5. **Updates:** install the newer APK over the old one. Your data stays, because every APK is signed with the same
    SafeFlow release key. The installed version is shown under **Cont → Versiune aplicație**.
 
 **Option 2: installable website (PWA).** In Chrome open https://iasi-safeflow.github.io → menu **⋮ → Install app**
@@ -137,7 +141,7 @@ The API URL is baked in at build time (`EXPO_PUBLIC_API_URL`, default `https://i
 ## Free-hosting caveats
 
 - **Render's free plan sleeps** after a period of inactivity. The first request afterwards can take up to about a
-  minute while it wakes.
+  minute while it wakes (measured: 22 s after 16 minutes idle, then under 1 s). Until then the map shows no reports.
 - **There is no persistent disk on the free plan.** The SQLite file is **wiped on every restart, redeploy, or sleep
   cycle**. All submitted reports and registered accounts are lost. On startup the reviewer account and the simulated
   demo dataset are recreated.

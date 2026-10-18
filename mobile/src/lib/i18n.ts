@@ -54,6 +54,7 @@ export const t = {
   sourceSimulated: 'Date simulate',
   mapDisclaimer:
     'Locații aproximative (~100 m). Fiecare punct este o observație a unui utilizator, nu o confirmare oficială.',
+  mapLoading: 'Se încarcă rapoartele… Prima încărcare poate dura până la un minut.',
 
   dangerQuestion: 'Este cineva rănit sau există un pericol imediat chiar acum?',
   yes: 'Da',

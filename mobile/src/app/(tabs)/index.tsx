@@ -1,9 +1,9 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View, ViewStyle } from 'react-native';
 
 import { LeafletMap, MapMarker } from '@/components/LeafletMap';
-import { Chip, ErrorText, styles } from '@/components/ui';
+import { Chip, colors, ErrorText, styles } from '@/components/ui';
 import { api, errorText, PublicReport } from '@/lib/api';
 import { CATEGORY_LABELS, formatDate, STATUS_COLORS, STATUS_LABELS, t } from '@/lib/i18n';
 
@@ -12,16 +12,25 @@ export default function PublicMapScreen() {
   const [reports, setReports] = useState<PublicReport[]>([]);
   const [category, setCategory] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
+      // The free API host can take ~20 s to wake, so ignore a response that arrives after the filter changed.
+      let active = true;
       const q = category ? `?category=${category}` : '';
+      setLoading(true);
       api<PublicReport[]>('/public/reports' + q)
         .then((r) => {
+          if (!active) return;
           setReports(r);
           setError('');
         })
-        .catch((e) => setError(errorText(e)));
+        .catch((e) => active && setError(errorText(e)))
+        .finally(() => active && setLoading(false));
+      return () => {
+        active = false;
+      };
     }, [category]),
   );
 
@@ -45,7 +54,15 @@ export default function PublicMapScreen() {
 
   return (
     <View style={styles.screen}>
-      <LeafletMap markers={markers} style={{ flex: 1 }} />
+      <View style={{ flex: 1 }}>
+        <LeafletMap markers={markers} style={{ flex: 1 }} />
+        {loading && (
+          <View pointerEvents="none" style={mapLoadingStyle}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.muted, { flex: 1, marginLeft: 8 }]}>{t.mapLoading}</Text>
+          </View>
+        )}
+      </View>
       <View style={{ maxHeight: 170, padding: 12 }}>
         <Text style={styles.muted}>{t.mapDisclaimer}</Text>
         <ErrorText>{error}</ErrorText>
@@ -68,3 +85,18 @@ export default function PublicMapScreen() {
     </View>
   );
 }
+
+// Floats over the top of the map; pointerEvents="none" keeps the map usable underneath.
+const mapLoadingStyle: ViewStyle = {
+  position: 'absolute',
+  top: 12,
+  left: 56,
+  right: 12,
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: 10,
+  borderRadius: 8,
+  backgroundColor: colors.card,
+  borderWidth: 1,
+  borderColor: colors.border,
+};
