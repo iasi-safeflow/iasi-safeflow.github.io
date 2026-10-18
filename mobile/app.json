@@ -3,7 +3,7 @@
     "name": "Iași SafeFlow",
     "slug": "iasi-safeflow",
     "scheme": "iasisafeflow",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,14 +15,14 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0b5cad",
+        "backgroundColor": "#4e1bab",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "io.github.iasisafeflow",
-      "versionCode": 7,
+      "versionCode": 8,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
