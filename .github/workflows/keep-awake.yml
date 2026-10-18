@@ -10,7 +10,8 @@ name: Keep API awake
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Every 10 minutes, offset from :00 (GitHub drops scheduled runs most often at the top of the hour).
+    - cron: '3,13,23,33,43,53 * * * *'
   workflow_dispatch:
 
 permissions: {}
