@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
-import { api, ApiError, User } from './api';
+import { api, ApiError, setUnauthorizedHandler, User } from './api';
 import { clearToken, readToken, writeToken } from './tokenStore';
 
 const TOKEN_KEY = 'safeflow.session';
@@ -9,6 +9,8 @@ type AuthState = {
   user: User | null;
   token: string | null;
   ready: boolean;
+  // True after the server rejected the saved session (not after a normal logout), so screens can explain it.
+  sessionEnded: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await writeToken(TOKEN_KEY, res.token);
     setToken(res.token);
     setUser(res.user);
+    setSessionEnded(false);
   }, []);
 
   const login = useCallback(
@@ -58,8 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  // A rejected session mid-use (account wiped on the server) signs the user out instead of leaving a dead login.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setSessionEnded(true);
+      void logout();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
+
   return (
-    <AuthContext.Provider value={{ user, token, ready, login, register, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, token, ready, sessionEnded, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

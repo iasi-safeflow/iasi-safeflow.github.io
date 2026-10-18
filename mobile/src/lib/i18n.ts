@@ -80,6 +80,8 @@ export const t = {
   reportId: 'ID raport',
   newReport: 'Raport nou',
   loginToReport: 'Autentificați-vă pentru a trimite un raport non-urgent.',
+  sessionEnded:
+    'Sesiunea s-a încheiat: sesiunea a expirat sau contul nu mai există pe serverul demo, care se resetează periodic. Ce ați completat rămâne în formular.',
 
   login: 'Autentificare',
   register: 'Creează cont',

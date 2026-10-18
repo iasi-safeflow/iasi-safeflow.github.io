@@ -15,7 +15,7 @@ import { needsEmergencyStop } from '@/lib/safety';
 type Pick = { lat: number; lon: number; source: 'pin' | 'gps'; accuracy?: number };
 
 export default function ReportScreen() {
-  const { user, token } = useAuth();
+  const { user, token, sessionEnded } = useAuth();
   const [danger, setDanger] = useState<boolean | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [pick, setPick] = useState<Pick | null>(null);
@@ -93,6 +93,8 @@ export default function ReportScreen() {
       setResult(created);
     } catch (e) {
       if (e instanceof ApiError && e.detail.code === 'call_112') setStopped(true);
+      // 401: AuthProvider has signed out and the login card explains it; the form keeps its contents.
+      else if (e instanceof ApiError && e.status === 401) setError('');
       else setError(errorText(e));
     } finally {
       setBusy(false);
@@ -146,6 +148,7 @@ export default function ReportScreen() {
 
       {danger === false && !user && (
         <Card>
+          {sessionEnded && <Text style={[styles.body, { marginBottom: 8 }]}>{t.sessionEnded}</Text>}
           <Text style={styles.body}>{t.loginToReport}</Text>
           <Button title={t.login} onPress={() => router.push('/login')} />
           <Button title={t.register} variant="secondary" onPress={() => router.push('/register')} />

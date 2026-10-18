@@ -26,6 +26,13 @@ export class ApiError extends Error {
   }
 }
 
+// Called when a request sent with a token gets 401, e.g. after the free API host wiped its database and the
+// account no longer exists. AuthProvider registers it to sign the user out.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
 export async function api<T>(
   path: string,
   opts: { method?: string; body?: unknown; token?: string | null } = {},
@@ -46,6 +53,7 @@ export async function api<T>(
   }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
+    if (res.status === 401 && opts.token) onUnauthorized?.();
     const detail = data?.detail;
     if (detail && typeof detail === 'object' && 'code' in detail) throw new ApiError(res.status, detail);
     throw new ApiError(res.status, { code: 'http_' + res.status, message: t.genericError });
