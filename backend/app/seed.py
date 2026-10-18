@@ -9,11 +9,12 @@ import secrets
 import sqlite3
 from datetime import timedelta
 
+from .assistant.runner import assess, record
 from .db import iso, utcnow
+from .domain import SIMULATED_PREFIX
 from .security import hash_password
 
 SEED_USER_EMAIL = "demo-seed@safeflow.invalid"  # placeholder owner; random password, cannot log in
-SIMULATED_PREFIX = "[SIMULAT] "
 
 # (public_id, category, description, lat, lon, hours_ago, status)
 DEMO_REPORTS = (
@@ -54,4 +55,10 @@ def seed_demo_reports(db: sqlite3.Connection) -> int:
                    VALUES (?, ?, ?, ?, ?, ?, 'pin', NULL, ?, ?, ?, 'simulated', 1, ?)""",
                 (public_id, owner, category, SIMULATED_PREFIX + description, lat, lon, observed, observed, observed, status),
             )
+        # Each demo report gets the same automatic check a real one would; flagged ones start out held.
+        for row in db.execute("SELECT * FROM reports WHERE reporter_id = ? ORDER BY created_at, id", (owner,)).fetchall():
+            result = assess(db, dict(row), now)
+            record(db, row["id"], "created", result, now)
+            if result["flags"]:
+                db.execute("UPDATE reports SET public_visibility = 'held' WHERE id = ?", (row["id"],))
     return len(DEMO_REPORTS)

@@ -8,7 +8,8 @@ from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from ..config import Settings
+from ..assistant.runner import assess, recheck_nearby, record
+from ..config import Settings, log
 from ..db import iso, utcnow
 from ..deps import current_user, get_db, get_settings, optional_user
 from ..domain import verification
@@ -75,18 +76,43 @@ def create_report(
     if count >= settings.report_rate_limit_per_hour:
         raise api_error(429, "rate_limited", "Ați trimis prea multe rapoarte într-o oră. Încercați mai târziu.")
 
-    public_id = new_public_id()
+    fields = {
+        "public_id": new_public_id(),
+        "category": report.category,
+        "description": report.description,
+        "lat": report.lat,
+        "lon": report.lon,
+        "location_source": report.location_source,
+        "gps_accuracy_m": report.gps_accuracy_m,
+        "observed_at": iso(report.observed_at),
+    }
+    # 2. The review assistant checks the report before it is stored. Any flag keeps it off the public map until a
+    # reviewer decides; if the assistant itself fails, the report is held too rather than published unchecked.
+    try:
+        result = assess(db, fields, now)
+    except Exception:
+        log.exception("Review assistant failed; the new report is held for a reviewer.")
+        result = None
+    visibility = "held" if result is None or result["flags"] else "public"
     with db:
-        db.execute(
+        cur = db.execute(
             """INSERT INTO reports (public_id, reporter_id, category, description, lat, lon, location_source,
-                   gps_accuracy_m, observed_at, created_at, updated_at, source_type, is_simulated, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user_report', 0, 'submitted')""",
+                   gps_accuracy_m, observed_at, created_at, updated_at, source_type, is_simulated, status,
+                   public_visibility)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user_report', 0, 'submitted', ?)""",
             (
-                public_id, user["id"], report.category, report.description, report.lat, report.lon,
-                report.location_source, report.gps_accuracy_m, iso(report.observed_at), iso(now), iso(now),
+                fields["public_id"], user["id"], fields["category"], fields["description"], fields["lat"], fields["lon"],
+                fields["location_source"], fields["gps_accuracy_m"], fields["observed_at"], iso(now), iso(now), visibility,
             ),
         )
-    row = db.execute("SELECT * FROM reports WHERE public_id = ?", (public_id,)).fetchone()
+        if result is not None:
+            record(db, cur.lastrowid, "created", result, now)
+    # 3. Open reports nearby may now have a duplicate or a corroboration: append a fresh check for each.
+    try:
+        recheck_nearby(db, {**fields, "id": cur.lastrowid}, now)
+    except Exception:
+        log.exception("Review assistant re-check of nearby reports failed; earlier results are kept.")
+    row = db.execute("SELECT * FROM reports WHERE id = ?", (cur.lastrowid,)).fetchone()
     return own_report_out(row)
 
 

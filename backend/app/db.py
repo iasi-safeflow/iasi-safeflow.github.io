@@ -67,6 +67,44 @@ MIGRATIONS: tuple[tuple[str, ...], ...] = (
         "ALTER TABLE reports ADD COLUMN rejection_reason TEXT",
         "ALTER TABLE review_actions ADD COLUMN reason TEXT",
     ),
+    # 2: review assistant results and reviewer decisions about duplicates, both append-only
+    (
+        """CREATE TABLE assistant_runs (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               report_id INTEGER NOT NULL REFERENCES reports(id),
+               triggered_by TEXT NOT NULL CHECK (triggered_by IN ('created', 'nearby_report', 'reviewer_decision')),
+               assistant_version TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               importance_score INTEGER NOT NULL,
+               importance_level TEXT NOT NULL,
+               factors_json TEXT NOT NULL,
+               flags_json TEXT NOT NULL,
+               duplicates_json TEXT NOT NULL
+           )""",
+        "CREATE INDEX idx_assistant_runs_report ON assistant_runs (report_id, id)",
+        """CREATE TRIGGER assistant_runs_no_update BEFORE UPDATE ON assistant_runs
+           BEGIN SELECT RAISE(ABORT, 'assistant history is append-only'); END""",
+        """CREATE TRIGGER assistant_runs_no_delete BEFORE DELETE ON assistant_runs
+           BEGIN SELECT RAISE(ABORT, 'assistant history is append-only'); END""",
+        # report_id is the newer report, related_report_id the one it duplicates. The latest row for a pair wins.
+        """CREATE TABLE report_relations (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               report_id INTEGER NOT NULL REFERENCES reports(id),
+               related_report_id INTEGER NOT NULL REFERENCES reports(id),
+               relation_type TEXT NOT NULL
+                   CHECK (relation_type IN ('duplicate_confirmed', 'not_duplicate', 'duplicate_revoked')),
+               reviewer_id INTEGER NOT NULL REFERENCES users(id),
+               created_at TEXT NOT NULL,
+               CHECK (report_id <> related_report_id)
+           )""",
+        "CREATE INDEX idx_report_relations_report ON report_relations (report_id)",
+        "CREATE INDEX idx_report_relations_related ON report_relations (related_report_id)",
+        """CREATE TRIGGER report_relations_no_update BEFORE UPDATE ON report_relations
+           BEGIN SELECT RAISE(ABORT, 'report relations are append-only'); END""",
+        """CREATE TRIGGER report_relations_no_delete BEFORE DELETE ON report_relations
+           BEGIN SELECT RAISE(ABORT, 'report relations are append-only'); END""",
+        "ALTER TABLE review_actions ADD COLUMN related_report_id INTEGER REFERENCES reports(id)",
+    ),
 )
 
 

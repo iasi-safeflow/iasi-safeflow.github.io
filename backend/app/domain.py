@@ -49,5 +49,8 @@ def verification(status: str) -> str:
 # Iași municipality plus a margin (approximate bounding box).
 IASI_BOUNDS = {"lat_min": 47.08, "lat_max": 47.24, "lon_min": 27.45, "lon_max": 27.72}
 
+# Every simulated demo description starts with this, so the data can never pass for a real report.
+SIMULATED_PREFIX = "[SIMULAT] "
+
 # ~110 m north-south, ~75 m east-west at Iași's latitude.
 PUBLIC_COORD_DECIMALS = 3

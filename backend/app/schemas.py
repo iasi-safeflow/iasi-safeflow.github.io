@@ -103,3 +103,12 @@ class StatusChange(BaseModel):
         if self.status != "rejected" and self.reason is not None:
             raise ValueError("Motivul se completează doar la respingere.")
         return self
+
+
+class DuplicateDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # link: the newer report is rejected as a duplicate of the older one (+1 corroboration for the older one).
+    # not_duplicate: the pair is not suggested again. revoke: undoes a link and reopens the newer report.
+    action: Literal["link", "not_duplicate", "revoke"]
+    notes: str = Field(default="", max_length=500)
