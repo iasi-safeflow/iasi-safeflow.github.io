@@ -202,5 +202,5 @@ No code from the AGPL-3.0 Iași Digital repository is included.
 
 Hackathon prototype. The review assistant is rule-based and has not been validated against crash data. Its
 importance level is a triage suggestion, not a crash prediction (see the limitations in
-[docs/ASSISTANT.md](docs/ASSISTANT.md)). There is no authority integration and no production-grade GDPR compliance. Referral statuses are set by a human reviewer and do **not** mean that an
-authority received anything.
+[docs/ASSISTANT.md](docs/ASSISTANT.md)). There is no authority integration and no production-grade GDPR compliance.
+Referral statuses are set by a human reviewer and do **not** mean that an authority received anything.
