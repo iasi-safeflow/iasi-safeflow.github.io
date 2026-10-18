@@ -19,10 +19,29 @@ export const EMERGENCY_CATEGORY_LABEL = 'Incident în desfășurare acum (accide
 export const STATUS_LABELS: Record<string, string> = {
   submitted: 'Primit',
   under_review: 'În analiză',
+  validated: 'Validat',
   referred: 'Pregătit pentru sesizare (netrimis)',
   resolved: 'Rezolvat (conform recenzentului)',
   rejected: 'Respins',
   expired: 'Expirat',
+};
+
+// Reviewer-facing short labels for the required rejection reason.
+export const REJECTION_REASON_LABELS: Record<string, string> = {
+  duplicate: 'Duplicat',
+  not_road_safety: 'Nu ține de siguranța rutieră',
+  insufficient_info: 'Informații insuficiente',
+  outside_area: 'În afara zonei Iași',
+  abusive_spam: 'Conținut abuziv / spam',
+};
+
+// What the reporter sees in "Ale mele": neutral wording. The reviewer's private note is never shown.
+export const REJECTION_REASON_TEXT: Record<string, string> = {
+  duplicate: 'Duplicat – problema a fost deja semnalată.',
+  not_road_safety: 'Nu ține de siguranța rutieră – raportul nu descrie o problemă de siguranță rutieră.',
+  insufficient_info: 'Informații insuficiente – descrierea nu a fost suficientă pentru analiză.',
+  outside_area: 'În afara zonei Iași – locația nu este în zona acoperită.',
+  abusive_spam: 'Conținut abuziv / spam – raportul nu respectă regulile de utilizare.',
 };
 
 export const t = {
@@ -44,6 +63,9 @@ export const t = {
 
   sourceUserReport: 'Raport utilizator – neverificat',
   sourceSimulated: 'Date simulate',
+  reviewerVerified: 'Verificat de un recenzent',
+  held: 'În așteptare – va fi publicat după verificare',
+  rejectedPrefix: 'Respins',
   mapDisclaimer:
     'Locații aproximative (~100 m). Fiecare punct este o observație a unui utilizator, nu o confirmare oficială.',
   mapLoading: 'Se încarcă rapoartele… Prima încărcare poate dura până la un minut.',
@@ -105,6 +127,17 @@ export const t = {
   all: 'Toate',
   notes: 'Notă (opțional, vizibilă doar recenzenților)',
   changeStatus: 'Schimbă statusul',
+  actValidate: 'Validează',
+  actReject: 'Respinge',
+  actUnderReview: 'Pune în analiză',
+  actReopen: 'Redeschide',
+  heldForReview: 'Ascuns de pe harta publică până la decizia unui recenzent.',
+  rejectTitle: 'Motivul respingerii',
+  rejectHint: 'Raportorul vede doar motivul, în formulare neutră. Nota rămâne privată.',
+  rejectNote: 'Notă privată (opțional, vizibilă doar recenzenților)',
+  rejectConfirm: 'Respinge raportul',
+  cancel: 'Anulează',
+  reason: 'Motiv',
   audit: 'Jurnal de audit',
   auditEmpty: 'Nicio acțiune încă.',
   reporterRef: 'Raportor (pseudonim)',
@@ -125,6 +158,15 @@ export const t = {
   installApk: 'Descarcă aplicația Android (APK)',
   appVersion: 'Versiune aplicație',
 };
+
+// Source and verification labels: "Date simulate" and/or "Verificat de un recenzent", otherwise
+// "Raport utilizator – neverificat". Verified only means a reviewer validated it, never an official confirmation.
+export function sourceLabels(simulated: boolean, verification = 'unverified'): string[] {
+  const labels = simulated ? [t.sourceSimulated] : [];
+  if (verification === 'reviewer_verified') labels.push(t.reviewerVerified);
+  else if (!simulated) labels.push(t.sourceUserReport);
+  return labels;
+}
 
 export function formatDateTime(iso: string): string {
   const d = new Date(iso);

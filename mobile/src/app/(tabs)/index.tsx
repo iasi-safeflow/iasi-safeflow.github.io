@@ -6,7 +6,7 @@ import { EmergencyBanner } from '@/components/EmergencyBanner';
 import { LeafletMap, MapMarker } from '@/components/LeafletMap';
 import { Chip, ErrorText, Icon, StatusBadge, TAB_BAR_SPACE, useStyles } from '@/components/ui';
 import { api, errorText, PublicReport } from '@/lib/api';
-import { CATEGORY_LABELS, nearbyLabel, STATUS_LABELS, t, timeAgo } from '@/lib/i18n';
+import { CATEGORY_LABELS, nearbyLabel, sourceLabels, STATUS_LABELS, t, timeAgo } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, radius, StatusKey, TOUCH } from '@/theme';
 
@@ -119,7 +119,7 @@ export default function PublicMapScreen() {
             </View>
             <Text style={[s.selectedTitle, { color: colors.text }]}>{CATEGORY_LABELS[selected.category] ?? selected.category}</Text>
             <Text style={styles.muted}>
-              {selected.is_simulated ? t.sourceSimulated : t.sourceUserReport} · {t.approxZone} · {selected.public_id}
+              {sourceLabels(selected.is_simulated, selected.verification).join(' · ')} · {t.approxZone} · {selected.public_id}
             </Text>
           </View>
         )}

@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from ..config import Settings
 from ..db import iso, utcnow
 from ..deps import current_user, get_db, get_settings, optional_user
+from ..domain import verification
 from ..errors import api_error, validation_error_body
 from ..safety import emergency_reasons, emergency_response_body
 from ..schemas import ReportCreate
@@ -39,7 +40,10 @@ def own_report_out(row: sqlite3.Row) -> dict:
         "status": row["status"],
         "source_type": row["source_type"],
         "is_simulated": bool(row["is_simulated"]),
-        "verification": "unverified",
+        "verification": verification(row["status"]),
+        # Held = not on the public map until a reviewer looks at it. The reviewer's private note is never included.
+        "public_visibility": row["public_visibility"],
+        "rejection_reason": row["rejection_reason"],
     }
 
 

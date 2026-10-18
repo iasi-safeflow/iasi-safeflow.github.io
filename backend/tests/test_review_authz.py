@@ -50,7 +50,7 @@ def test_reviewer_status_change_and_invalid_transition(client, reviewer_token, s
     h = auth_header(reviewer_token)
     r = client.post(f"/review/reports/{pid}/status", json={"status": "resolved"}, headers=h)
     assert r.status_code == 409  # submitted -> resolved is not allowed
-    assert set(r.json()["detail"]["allowed"]) == {"under_review", "rejected"}
+    assert set(r.json()["detail"]["allowed"]) == {"under_review", "validated", "rejected"}
 
     r = client.post(f"/review/reports/{pid}/status", json={"status": "under_review"}, headers=h)
     assert r.status_code == 200

@@ -16,7 +16,7 @@ def test_public_map_is_privacy_safe(client, submitted_report):
 
 def test_rejected_reports_hidden_from_public_map_but_status_lookup_works(client, reviewer_token, submitted_report):
     pid = submitted_report["public_id"]
-    client.post(f"/review/reports/{pid}/status", json={"status": "rejected"}, headers=auth_header(reviewer_token))
+    client.post(f"/review/reports/{pid}/status", json={"status": "rejected", "reason": "insufficient_info"}, headers=auth_header(reviewer_token))
     assert client.get("/public/reports").json() == []
     lookup = client.get(f"/public/reports/{pid.lower()}")
     assert lookup.status_code == 200 and lookup.json()["status"] == "rejected"

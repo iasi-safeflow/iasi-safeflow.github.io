@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { ComponentProps, ReactNode, useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 
-import { STATUS_LABELS, t } from '@/lib/i18n';
+import { sourceLabels, STATUS_LABELS } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, radius, StatusKey, ThemeColors, TOUCH } from '@/theme';
 
@@ -100,13 +100,17 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// "Raport utilizator – neverificat" or "Date simulate": never shown as verified.
-export function SourceBadge({ simulated }: { simulated: boolean }) {
+// "Raport utilizator – neverificat", "Date simulate", or "Verificat de un recenzent" once a reviewer validated it.
+export function SourceBadge({ simulated, verification }: { simulated: boolean; verification?: string }) {
   const styles = useStyles();
   return (
-    <View style={[styles.badge, styles.badgeOutline]}>
-      <Text style={[styles.badgeText, styles.mutedColor]}>{simulated ? t.sourceSimulated : t.sourceUserReport}</Text>
-    </View>
+    <>
+      {sourceLabels(simulated, verification).map((label) => (
+        <View key={label} style={[styles.badge, styles.badgeOutline]}>
+          <Text style={[styles.badgeText, styles.mutedColor]}>{label}</Text>
+        </View>
+      ))}
+    </>
   );
 }
 

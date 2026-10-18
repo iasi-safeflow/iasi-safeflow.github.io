@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
-from .domain import CATEGORIES, IASI_BOUNDS, STATUSES
+from .domain import CATEGORIES, IASI_BOUNDS, REJECTION_REASONS, STATUSES
 
 
 class Credentials(BaseModel):
@@ -78,7 +78,9 @@ class StatusChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: str
+    # Private reviewer note: kept in the audit log, never shown to the reporter.
     notes: str = Field(default="", max_length=500)
+    reason: str | None = None
 
     @field_validator("status")
     @classmethod
@@ -86,3 +88,18 @@ class StatusChange(BaseModel):
         if v not in STATUSES:
             raise ValueError("Status necunoscut.")
         return v
+
+    @field_validator("reason")
+    @classmethod
+    def known_reason(cls, v: str | None) -> str | None:
+        if v is not None and v not in REJECTION_REASONS:
+            raise ValueError("Motiv de respingere necunoscut.")
+        return v
+
+    @model_validator(mode="after")
+    def reason_only_when_rejecting(self) -> "StatusChange":
+        if self.status == "rejected" and self.reason is None:
+            raise ValueError("Alegeți motivul respingerii.")
+        if self.status != "rejected" and self.reason is not None:
+            raise ValueError("Motivul se completează doar la respingere.")
+        return self

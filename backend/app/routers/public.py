@@ -1,11 +1,14 @@
-"""Public, unauthenticated endpoints. Only privacy-safe fields: no description, reporter, exact time or exact location."""
+"""Public, unauthenticated endpoints. Only privacy-safe fields: no description, reporter, exact time or exact location.
+
+Held reports (public_visibility = 'held') never appear here, not even by ID, until a reviewer publishes them.
+"""
 
 import sqlite3
 
 from fastapi import APIRouter, Depends, Query
 
 from ..deps import get_db
-from ..domain import PUBLIC_COORD_DECIMALS, PUBLIC_HIDDEN_STATUSES
+from ..domain import PUBLIC_COORD_DECIMALS, PUBLIC_HIDDEN_STATUSES, verification
 from ..errors import api_error
 
 router = APIRouter(prefix="/public", tags=["public"])
@@ -24,7 +27,7 @@ def public_report_out(row: sqlite3.Row) -> dict:
         "updated_date": row["updated_at"][:10],
         "source_type": row["source_type"],
         "is_simulated": bool(row["is_simulated"]),
-        "verification": "unverified",
+        "verification": verification(row["status"]),
     }
 
 
@@ -34,7 +37,7 @@ def public_reports(
     status: str | None = Query(default=None),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    sql = f"SELECT * FROM reports WHERE status NOT IN ({_HIDDEN})"
+    sql = f"SELECT * FROM reports WHERE public_visibility = 'public' AND status NOT IN ({_HIDDEN})"
     params: list = list(PUBLIC_HIDDEN_STATUSES)
     if category:
         sql += " AND category = ?"
@@ -49,7 +52,9 @@ def public_reports(
 @router.get("/reports/{public_id}")
 def public_report_status(public_id: str, db: sqlite3.Connection = Depends(get_db)):
     """Status lookup by report ID (works for rejected reports too, so reporters see the outcome)."""
-    row = db.execute("SELECT * FROM reports WHERE public_id = ?", (public_id.upper(),)).fetchone()
+    row = db.execute(
+        "SELECT * FROM reports WHERE public_id = ? AND public_visibility = 'public'", (public_id.upper(),)
+    ).fetchone()
     if row is None:
         raise api_error(404, "not_found", "Raportul nu a fost găsit.")
     return public_report_out(row)

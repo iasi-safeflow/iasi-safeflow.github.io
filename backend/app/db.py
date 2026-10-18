@@ -57,9 +57,33 @@ def connect(path: str) -> sqlite3.Connection:
     return conn
 
 
+# Schema changes after the first release, applied in order. PRAGMA user_version records how many have run, so
+# existing databases keep their data and gain the new columns/tables. Append only; never edit a released step.
+MIGRATIONS: tuple[tuple[str, ...], ...] = (
+    # 1: reviewer validation, rejection reasons, held reports
+    (
+        """ALTER TABLE reports ADD COLUMN public_visibility TEXT NOT NULL DEFAULT 'public'
+               CHECK (public_visibility IN ('public', 'held'))""",
+        "ALTER TABLE reports ADD COLUMN rejection_reason TEXT",
+        "ALTER TABLE review_actions ADD COLUMN reason TEXT",
+    ),
+)
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
     conn.commit()
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    for number, statements in enumerate(MIGRATIONS[version:], start=version + 1):
+        conn.execute("BEGIN")
+        try:
+            for statement in statements:
+                conn.execute(statement)
+            conn.execute(f"PRAGMA user_version = {number}")
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
 
 
 def utcnow() -> datetime:

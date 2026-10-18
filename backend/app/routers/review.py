@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from ..config import Settings
 from ..db import iso, utcnow
 from ..deps import get_db, get_settings, require_reviewer
-from ..domain import TRANSITIONS
+from ..domain import PUBLISHING_STATUSES, TRANSITIONS, verification
 from ..errors import api_error
 from ..schemas import StatusChange
 
@@ -36,6 +36,9 @@ def review_report_out(row: sqlite3.Row, secret: str) -> dict:
         "updated_at": row["updated_at"],
         "status": row["status"],
         "allowed_next": sorted(TRANSITIONS[row["status"]]),
+        "rejection_reason": row["rejection_reason"],
+        "public_visibility": row["public_visibility"],
+        "verification": verification(row["status"]),
         "source_type": row["source_type"],
         "is_simulated": bool(row["is_simulated"]),
         "reporter_ref": reporter_ref(secret, row["reporter_id"]),
@@ -50,6 +53,7 @@ def audit_out(row: sqlite3.Row) -> dict:
         "action": row["action"],
         "from_status": row["from_status"],
         "to_status": row["to_status"],
+        "reason": row["reason"],
         "notes": row["notes"],
         "created_at": row["created_at"],
     }
@@ -70,6 +74,7 @@ def _get_report(db: sqlite3.Connection, public_id: str) -> sqlite3.Row:
 def queue(
     status: str | None = Query(default=None),
     category: str | None = Query(default=None),
+    visibility: str | None = Query(default=None, pattern="^(public|held)$"),
     sort: str = Query(default="newest", pattern="^(newest|oldest)$"),
     _: sqlite3.Row = Depends(require_reviewer),
     settings: Settings = Depends(get_settings),
@@ -82,6 +87,9 @@ def queue(
     if category:
         sql += " AND category = ?"
         params.append(category)
+    if visibility:
+        sql += " AND public_visibility = ?"
+        params.append(visibility)
     sql += " ORDER BY created_at " + ("DESC" if sort == "newest" else "ASC") + ", id"
     return [review_report_out(r, settings.secret_key) for r in db.execute(sql, params).fetchall()]
 
@@ -112,12 +120,17 @@ def change_status(
             allowed=sorted(TRANSITIONS[current]),
         )
     now = iso(utcnow())
+    # A held report is published only by a reviewer's decision; rejecting keeps it hidden.
+    visibility = "public" if body.status in PUBLISHING_STATUSES else row["public_visibility"]
     with db:  # one transaction: status + audit entry, or neither
-        db.execute("UPDATE reports SET status = ?, updated_at = ? WHERE id = ?", (body.status, now, row["id"]))
         db.execute(
-            """INSERT INTO review_actions (report_id, reviewer_id, action, from_status, to_status, notes, created_at)
-               VALUES (?, ?, 'status_change', ?, ?, ?, ?)""",
-            (row["id"], reviewer["id"], current, body.status, body.notes.strip() or None, now),
+            "UPDATE reports SET status = ?, rejection_reason = ?, public_visibility = ?, updated_at = ? WHERE id = ?",
+            (body.status, body.reason, visibility, now, row["id"]),
+        )
+        db.execute(
+            """INSERT INTO review_actions (report_id, reviewer_id, action, from_status, to_status, reason, notes, created_at)
+               VALUES (?, ?, 'status_change', ?, ?, ?, ?, ?)""",
+            (row["id"], reviewer["id"], current, body.status, body.reason, body.notes.strip() or None, now),
         )
     return review_report_out(_get_report(db, public_id), settings.secret_key)
 

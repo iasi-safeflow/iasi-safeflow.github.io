@@ -13,16 +13,16 @@ def _move(client, token, pid, status, notes=""):
 def test_each_status_change_is_audited_in_order(client, reviewer_token, submitted_report):
     pid = submitted_report["public_id"]
     _move(client, reviewer_token, pid, "under_review", "Verific la fața locului.")
-    _move(client, reviewer_token, pid, "resolved")
+    _move(client, reviewer_token, pid, "validated")
 
     log = client.get(f"/review/reports/{pid}/audit", headers=auth_header(reviewer_token)).json()
-    assert [(e["from_status"], e["to_status"]) for e in log] == [("submitted", "under_review"), ("under_review", "resolved")]
+    assert [(e["from_status"], e["to_status"]) for e in log] == [("submitted", "under_review"), ("under_review", "validated")]
     assert all(e["reviewer_email"] == REVIEWER_EMAIL and e["action"] == "status_change" for e in log)
     assert log[0]["notes"] == "Verific la fața locului."
     assert log[1]["notes"] is None
 
     global_log = client.get("/review/audit", headers=auth_header(reviewer_token)).json()
-    assert [e["to_status"] for e in global_log] == ["resolved", "under_review"]  # newest first
+    assert [e["to_status"] for e in global_log] == ["validated", "under_review"]  # newest first
 
 
 def test_rejected_transition_writes_no_audit_entry(client, reviewer_token, submitted_report):

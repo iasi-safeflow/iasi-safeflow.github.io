@@ -2,7 +2,7 @@
 // Text pairs are checked for at least 4.5:1 contrast in both modes; status colours are used for map dots and
 // accents, and status labels use the soft badge pairs below.
 
-export type StatusKey = 'submitted' | 'under_review' | 'referred' | 'resolved' | 'rejected' | 'expired';
+export type StatusKey = 'submitted' | 'under_review' | 'validated' | 'referred' | 'resolved' | 'rejected' | 'expired';
 
 export type ThemeColors = {
   bg: string;
@@ -43,6 +43,7 @@ const light: ThemeColors = {
   status: {
     submitted: '#2F6FE0',
     under_review: '#E46A12',
+    validated: '#0E8A86',
     referred: '#8B5CF6',
     resolved: '#1F9254',
     rejected: '#6B6780',
@@ -51,6 +52,7 @@ const light: ThemeColors = {
   statusSoft: {
     submitted: { bg: '#E3ECFC', text: '#1C4FAF' },
     under_review: { bg: '#FFEBDA', text: '#9A4508' },
+    validated: { bg: '#DAF2F0', text: '#0A5C59' },
     referred: { bg: '#EFE8FE', text: '#5B33B6' },
     resolved: { bg: '#DDF3E6', text: '#14693A' },
     rejected: { bg: '#ECEBF1', text: '#4F4B63' },
@@ -77,6 +79,7 @@ const dark: ThemeColors = {
   status: {
     submitted: '#7EA8FF',
     under_review: '#FFA45C',
+    validated: '#5CD6CF',
     referred: '#C4A8FF',
     resolved: '#6EDCA0',
     rejected: '#9C95B0',
@@ -85,6 +88,7 @@ const dark: ThemeColors = {
   statusSoft: {
     submitted: { bg: 'rgba(126, 168, 255, 0.18)', text: '#A9C4FF' },
     under_review: { bg: 'rgba(255, 164, 92, 0.18)', text: '#FFB57E' },
+    validated: { bg: 'rgba(92, 214, 207, 0.18)', text: '#8FE6E0' },
     referred: { bg: 'rgba(196, 168, 255, 0.18)', text: '#DCCBFF' },
     resolved: { bg: 'rgba(110, 220, 160, 0.18)', text: '#98E9BE' },
     rejected: { bg: 'rgba(156, 149, 176, 0.18)', text: '#C9C3D9' },

@@ -16,19 +16,35 @@ CATEGORIES = (
 # Never stored: selecting it triggers the 112 gate.
 EMERGENCY_CATEGORY = "incident_activ"
 
-STATUSES = ("submitted", "under_review", "referred", "resolved", "rejected", "expired")
+STATUSES = ("submitted", "under_review", "validated", "referred", "resolved", "rejected", "expired")
 
 TRANSITIONS: dict[str, set[str]] = {
-    "submitted": {"under_review", "rejected"},
-    "under_review": {"referred", "resolved", "rejected", "expired"},
-    "referred": {"under_review", "resolved"},
-    "resolved": {"under_review"},
-    "rejected": {"under_review"},
+    "submitted": {"under_review", "validated", "rejected"},
+    "under_review": {"validated", "rejected", "expired"},
+    "validated": {"referred", "resolved", "rejected"},
+    "referred": {"resolved", "validated"},
+    "resolved": {"validated"},  # reopen
+    "rejected": {"under_review"},  # reopen
     "expired": {"under_review"},
 }
 
+# A reviewer has looked at these and confirmed the observation (not an official incident record).
+REVIEWER_VERIFIED_STATUSES = ("validated", "referred", "resolved")
+
+# Required when rejecting. The reporter sees a neutral text for the reason, never the reviewer's private note.
+REJECTION_REASONS = ("duplicate", "not_road_safety", "insufficient_info", "outside_area", "abusive_spam")
+
 # Statuses hidden from the public map.
 PUBLIC_HIDDEN_STATUSES = ("rejected",)
+
+# A held report is kept off every public endpoint until a reviewer moves it to one of these statuses.
+VISIBILITIES = ("public", "held")
+PUBLISHING_STATUSES = ("under_review", "validated")
+
+
+def verification(status: str) -> str:
+    return "reviewer_verified" if status in REVIEWER_VERIFIED_STATUSES else "unverified"
+
 
 # Iași municipality plus a margin (approximate bounding box).
 IASI_BOUNDS = {"lat_min": 47.08, "lat_max": 47.24, "lon_min": 27.45, "lon_max": 27.72}

@@ -80,7 +80,9 @@ export default function ReviewQueueScreen() {
             <Text style={styles.muted}>
               {t.created}: {formatDateTime(r.created_at)} · {r.reporter_ref}
             </Text>
-            <SourceBadge simulated={r.is_simulated} />
+            <View style={styles.row}>
+              <SourceBadge simulated={r.is_simulated} verification={r.verification} />
+            </View>
           </Card>
         </Pressable>
       ))}

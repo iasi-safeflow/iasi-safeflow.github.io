@@ -98,6 +98,9 @@ export type OwnReport = {
   updated_at: string;
   status: string;
   is_simulated: boolean;
+  verification: string;
+  public_visibility: 'public' | 'held';
+  rejection_reason: string | null;
 };
 
 export type ReviewReport = OwnReport & {
@@ -114,6 +117,7 @@ export type AuditEntry = {
   action: string;
   from_status: string | null;
   to_status: string | null;
+  reason: string | null;
   notes: string | null;
   created_at: string;
 };
