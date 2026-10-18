@@ -1,6 +1,7 @@
 // The one place for colours and fonts ("L – Neighbourly" design). Screens use these tokens, never raw values.
 // Text pairs are checked for at least 4.5:1 contrast in both modes; status colours are used for map dots and
-// accents, and status labels use the soft badge pairs below.
+// accents, and status labels use the soft badge pairs below. The "Contrast ridicat" palettes (hcLight, hcDark) keep
+// every text pair at 7:1 or more and draw thicker lines; mobile/tests/contrast.test.ts checks all of them.
 
 export type StatusKey = 'submitted' | 'under_review' | 'validated' | 'referred' | 'resolved' | 'rejected' | 'expired';
 
@@ -25,6 +26,8 @@ export type ThemeColors = {
   // design's map palette for a future vector map.
   map: { land: string; road: string; roadMajor: string; water: string; park: string };
   shadow: string;
+  lineWidth: number; // border thickness of cards, inputs and chips
+  highContrast: boolean;
 };
 
 const light: ThemeColors = {
@@ -62,6 +65,8 @@ const light: ThemeColors = {
   },
   map: { land: '#ECEAF4', road: '#FFFFFF', roadMajor: '#DAD6E8', water: '#CBDDF5', park: '#D8EBD9' },
   shadow: 'rgba(34, 28, 53, 0.12)',
+  lineWidth: 1,
+  highContrast: false,
 };
 
 const dark: ThemeColors = {
@@ -99,9 +104,90 @@ const dark: ThemeColors = {
   },
   map: { land: '#1C1828', road: '#2A2539', roadMajor: '#3A3350', water: '#182B4A', park: '#1B2A22' },
   shadow: 'rgba(0, 0, 0, 0.45)',
+  lineWidth: 1,
+  highContrast: false,
 };
 
-export const palettes = { light, dark };
+// High contrast: black on white / white on black, dark saturated status colours, no light greys, 2 px lines.
+const hcLight: ThemeColors = {
+  bg: '#FFFFFF',
+  card: '#FFFFFF',
+  border: '#000000',
+  text: '#000000',
+  muted: '#2B2B2B',
+  primary: '#3A1A8C',
+  onPrimary: '#FFFFFF',
+  primarySoft: '#ECE5FF',
+  primarySoftText: '#26096B',
+  focus: '#000000',
+  alertBg: '#FFE3E0',
+  alertText: '#5C0000',
+  alertButton: '#9E0000',
+  onAlertButton: '#FFFFFF',
+  status: {
+    submitted: '#0B3FA8',
+    under_review: '#8A3B00',
+    validated: '#00544F',
+    referred: '#4B1FA6',
+    resolved: '#0B5A2A',
+    rejected: '#333333',
+    expired: '#333333',
+  },
+  statusSoft: {
+    submitted: { bg: '#E6EEFF', text: '#0A2F80' },
+    under_review: { bg: '#FFEBD9', text: '#6B2E00' },
+    validated: { bg: '#DDF5F2', text: '#003F3B' },
+    referred: { bg: '#EFE7FF', text: '#3A1580' },
+    resolved: { bg: '#DFF5E7', text: '#0A4A22' },
+    rejected: { bg: '#EDEDED', text: '#1F1F1F' },
+    expired: { bg: '#EDEDED', text: '#1F1F1F' },
+  },
+  map: { land: '#F2F2F2', road: '#FFFFFF', roadMajor: '#BDBDBD', water: '#B3CCF0', park: '#C8E3CA' },
+  shadow: 'rgba(0, 0, 0, 0.25)',
+  lineWidth: 2,
+  highContrast: true,
+};
+
+const hcDark: ThemeColors = {
+  bg: '#000000',
+  card: '#0D0D0D',
+  border: '#FFFFFF',
+  text: '#FFFFFF',
+  muted: '#E6E6E6',
+  primary: '#D7C8FF',
+  onPrimary: '#000000',
+  primarySoft: '#24124D',
+  primarySoftText: '#FFFFFF',
+  focus: '#FFFFFF',
+  alertBg: '#3D0000',
+  alertText: '#FFDAD5',
+  alertButton: '#FF8A80',
+  onAlertButton: '#000000',
+  status: {
+    submitted: '#9EC0FF',
+    under_review: '#FFB27A',
+    validated: '#7BEDE5',
+    referred: '#D2BCFF',
+    resolved: '#8BF0B5',
+    rejected: '#D9D9D9',
+    expired: '#D9D9D9',
+  },
+  statusSoft: {
+    submitted: { bg: '#0F1F3D', text: '#C9DCFF' },
+    under_review: { bg: '#3A1E06', text: '#FFD3B0' },
+    validated: { bg: '#06302D', text: '#B5F5F0' },
+    referred: { bg: '#261A40', text: '#E4D8FF' },
+    resolved: { bg: '#082D18', text: '#BDF7D4' },
+    rejected: { bg: '#262626', text: '#F2F2F2' },
+    expired: { bg: '#262626', text: '#F2F2F2' },
+  },
+  map: { land: '#0A0A0A', road: '#262626', roadMajor: '#4D4D4D', water: '#102A52', park: '#10301A' },
+  shadow: 'rgba(0, 0, 0, 0.6)',
+  lineWidth: 2,
+  highContrast: true,
+};
+
+export const palettes = { light, dark, hcLight, hcDark };
 
 // Nunito, loaded in the root layout. Custom fonts need one family per weight (fontWeight alone doesn't switch it).
 export const fonts = {

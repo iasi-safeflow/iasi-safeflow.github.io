@@ -28,6 +28,11 @@ class Settings:
     allowed_origins: tuple[str, ...] = ()
     # Insert the labelled simulated demo dataset at startup when the reports table is empty.
     seed_demo_data: bool = False
+    # Street names (app/geocoding.py). Off by default so tests never reach the network; on in load_settings().
+    geocoder_enabled: bool = False
+    geocoder_url: str = "https://nominatim.openstreetmap.org"
+    geocoder_user_agent: str = "IasiSafeFlow/0.3 (+https://iasi-safeflow.github.io; road-safety reporting prototype)"
+    geocoder_cache_days: int = 30
 
 
 def parse_allowed_origins(raw: str | None) -> tuple[str, ...]:
@@ -60,5 +65,12 @@ def load_settings() -> Settings:
         demo_reviewer_password=os.getenv("DEMO_REVIEWER_PASSWORD") or None,
         report_rate_limit_per_hour=int(os.getenv("SAFEFLOW_REPORTS_PER_HOUR", 10)),
         allowed_origins=parse_allowed_origins(os.getenv("SAFEFLOW_ALLOWED_ORIGINS")),
-        seed_demo_data=os.getenv("SAFEFLOW_SEED_DEMO_DATA", "1").strip().lower() not in ("0", "false", "no", ""),
+        seed_demo_data=_flag("SAFEFLOW_SEED_DEMO_DATA", "1"),
+        geocoder_enabled=_flag("SAFEFLOW_GEOCODER_ENABLED", "1"),
+        geocoder_url=os.getenv("SAFEFLOW_GEOCODER_URL", Settings.geocoder_url).rstrip("/"),
+        geocoder_user_agent=os.getenv("SAFEFLOW_GEOCODER_USER_AGENT", Settings.geocoder_user_agent),
     )
+
+
+def _flag(name: str, default: str) -> bool:
+    return os.getenv(name, default).strip().lower() not in ("0", "false", "no", "")

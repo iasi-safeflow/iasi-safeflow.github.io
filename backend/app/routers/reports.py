@@ -4,7 +4,7 @@ import secrets
 import sqlite3
 from datetime import timedelta
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
@@ -50,6 +50,7 @@ def own_report_out(row: sqlite3.Row) -> dict:
 
 @router.post("", status_code=201)
 def create_report(
+    request: Request,
     payload: dict = Body(...),
     user: sqlite3.Row | None = Depends(optional_user),
     settings: Settings = Depends(get_settings),
@@ -113,6 +114,8 @@ def create_report(
     except Exception:
         log.exception("Review assistant re-check of nearby reports failed; earlier results are kept.")
     row = db.execute("SELECT * FROM reports WHERE id = ?", (cur.lastrowid,)).fetchone()
+    if visibility == "public":
+        request.app.state.area_streets.enqueue(row["lat"], row["lon"])  # street name for the public list, later
     return own_report_out(row)
 
 

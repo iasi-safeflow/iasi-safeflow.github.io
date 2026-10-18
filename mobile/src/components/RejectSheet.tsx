@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { useReduceMotion } from '@/lib/a11y';
 import { REJECTION_REASON_LABELS, t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';

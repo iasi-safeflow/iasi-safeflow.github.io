@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Linking, Text } from 'react-native';
+import { Linking } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { t } from '@/lib/i18n';
 import { Button, Card, Heading, useStyles } from './ui';
 

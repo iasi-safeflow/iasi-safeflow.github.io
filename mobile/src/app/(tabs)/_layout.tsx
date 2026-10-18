@@ -3,6 +3,7 @@ import { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, IconName, useTabBarHeight } from '@/components/ui';
+import { useA11y } from '@/lib/a11ySettings';
 import { useAuth } from '@/lib/auth';
 import { t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
@@ -19,6 +20,7 @@ export default function TabsLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const barHeight = useTabBarHeight();
+  const { textFactor } = useA11y(); // React Navigation draws its own labels, so "Text mare" is applied here
   const isReviewer = user?.role === 'reviewer';
   return (
     <Tabs
@@ -26,13 +28,13 @@ export default function TabsLayout() {
         headerTitleAlign: 'center',
         headerStyle: { backgroundColor: colors.bg },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontFamily: fonts.extrabold },
+        headerTitleStyle: { fontFamily: fonts.extrabold, fontSize: 17 * textFactor },
         headerShadowVisible: false,
         sceneStyle: { backgroundColor: colors.bg },
         tabBarActiveTintColor: colors.primarySoftText,
         tabBarInactiveTintColor: colors.muted,
         tabBarActiveBackgroundColor: colors.primarySoft,
-        tabBarLabelStyle: { fontFamily: fonts.extrabold, fontSize: 12 },
+        tabBarLabelStyle: { fontFamily: fonts.extrabold, fontSize: 12 * textFactor },
         tabBarHideOnKeyboard: true,
         // Floating, rounded bar; scrolling screens leave room for it (useTabBarSpace).
         tabBarStyle: {
@@ -49,7 +51,7 @@ export default function TabsLayout() {
           paddingHorizontal: 6,
           borderRadius: 26,
           borderTopWidth: 0,
-          borderWidth: 1,
+          borderWidth: colors.lineWidth,
           borderColor: colors.border,
           backgroundColor: colors.card,
           elevation: 6,

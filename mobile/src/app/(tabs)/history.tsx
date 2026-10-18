@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { DuplicatePill, FlagPill, ImportancePill, SuggestionLabel, WhyToggle } from '@/components/assistant';
 import { Button, Card, Chip, ErrorText, Heading, Icon, useStyles } from '@/components/ui';
 import { api, errorText, HistoryRow, ReviewerDecision } from '@/lib/api';

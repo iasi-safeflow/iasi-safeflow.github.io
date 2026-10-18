@@ -13,6 +13,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmergencyBanner } from '@/components/EmergencyBanner';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { ScreenReaderPrompt } from '@/components/ScreenReaderPrompt';
+import { A11yProvider, useA11y } from '@/lib/a11ySettings';
 import { AuthProvider } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/themeMode';
 import { fonts } from '@/theme';
@@ -21,18 +23,21 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black });
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          {/* If the font fails to load, the system font is used rather than blocking the app (and the 112 bar). */}
-          <Shell ready={fontsLoaded || !!fontError} />
-        </AuthProvider>
-      </ThemeProvider>
+      <A11yProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            {/* If the font fails to load, the system font is used rather than blocking the app (and the 112 bar). */}
+            <Shell ready={fontsLoaded || !!fontError} />
+          </AuthProvider>
+        </ThemeProvider>
+      </A11yProvider>
     </SafeAreaProvider>
   );
 }
 
 function Shell({ ready }: { ready: boolean }) {
   const { colors, dark } = useTheme();
+  const { textFactor } = useA11y();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -52,13 +57,14 @@ function Shell({ ready }: { ready: boolean }) {
       {/* The 112 bar is on every screen: here above the navigator, and on the home screen below its greeting. */}
       {pathname !== '/' && <EmergencyBanner />}
       <OfflineBanner />
+      <ScreenReaderPrompt />
       <View role="main" style={{ flex: 1 }}>
         <Stack
           screenOptions={{
             contentStyle: { backgroundColor: colors.bg },
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
-            headerTitleStyle: { fontFamily: fonts.extrabold },
+            headerTitleStyle: { fontFamily: fonts.extrabold, fontSize: 17 * textFactor },
             headerShadowVisible: false,
           }}
         >

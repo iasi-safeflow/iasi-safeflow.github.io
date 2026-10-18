@@ -1,5 +1,6 @@
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, TOUCH } from '@/theme';

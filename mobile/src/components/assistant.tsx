@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react';
-import { Pressable, Text, TextStyle, View } from 'react-native';
+import { Pressable, TextStyle, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { AssistantAnalysis, AssistantFlag, Evidence, Factor, ReviewReport } from '@/lib/api';
 import {
   CATEGORY_LABELS,

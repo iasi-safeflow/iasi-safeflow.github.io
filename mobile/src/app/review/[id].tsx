@@ -1,15 +1,25 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { LeafletMap } from '@/components/LeafletMap';
 import { AssistantPanel, evidenceRanges, HighlightedText } from '@/components/assistant';
+import { ReadAloudButton } from '@/components/ReadAloudButton';
 import { RejectSheet } from '@/components/RejectSheet';
 import { Button, Card, ErrorText, Field, Heading, Icon, IconName, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { announce } from '@/lib/a11y';
 import { api, AssistantAnalysis, AuditEntry, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { CATEGORY_LABELS, DECISION_LABELS, formatDateTime, REJECTION_REASON_LABELS, STATUS_LABELS, t } from '@/lib/i18n';
+import {
+  CATEGORY_LABELS,
+  DECISION_LABELS,
+  formatDateTime,
+  joinSentences,
+  REJECTION_REASON_LABELS,
+  STATUS_LABELS,
+  t,
+} from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { StatusKey } from '@/theme';
 
@@ -186,6 +196,15 @@ export default function ReviewDetailScreen() {
         <Text style={styles.muted}>
           {t.reporterRef}: {report.reporter_ref}
         </Text>
+        <ReadAloudButton
+          text={joinSentences([
+            report.public_id,
+            CATEGORY_LABELS[report.category] ?? report.category,
+            STATUS_LABELS[report.status] ?? report.status,
+            report.description,
+            `${t.observed} ${formatDateTime(report.observed_at)}`,
+          ])}
+        />
       </Card>
 
       <AssistantPanel analysis={analysis} report={report} busy={busy} onDecide={decideDuplicate} />

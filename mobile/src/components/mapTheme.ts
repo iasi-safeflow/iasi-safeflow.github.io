@@ -27,6 +27,7 @@ export const mapVars = (c: ThemeColors) => ({
   '--sf-text': c.text,
   '--sf-muted': c.muted,
   '--sf-primary': c.primary,
+  '--sf-hc': c.highContrast ? '1' : '0',
 });
 
 // Teardrop pin for the selected report and the picked location (SVG, so no image files are needed).
@@ -34,6 +35,13 @@ export const pinSvg = (fill: string, ring: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">` +
   `<path d="M17 1.5C8.4 1.5 1.5 8.3 1.5 16.8 1.5 28.3 17 42.5 17 42.5s15.5-14.2 15.5-25.7C32.5 8.3 25.6 1.5 17 1.5z" fill="${fill}" stroke="${ring}" stroke-width="2.5"/>` +
   `<circle cx="17" cy="17" r="6" fill="${ring}"/></svg>`;
+
+// High-contrast marker: a 26 px disc with a thick outline and the status letter, so status never relies on colour.
+export const LETTER_MARKER_SIZE = 26;
+export const letterMarkerHtml = (fill: string, outline: string, ink: string, letter: string) =>
+  `<div aria-hidden="true" style="width:${LETTER_MARKER_SIZE}px;height:${LETTER_MARKER_SIZE}px;box-sizing:border-box;` +
+  `border-radius:50%;background:${fill};border:3px solid ${outline};color:${ink};display:flex;align-items:center;` +
+  `justify-content:center;font:900 13px/1 Nunito_900Black,Arial,sans-serif;">${letter}</div>`;
 
 export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 export const TILE_ATTRIBUTION = '&copy; contribuitorii <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';

@@ -1,14 +1,16 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { EmergencyBanner } from '@/components/EmergencyBanner';
 import { LeafletMap, MapMarker } from '@/components/LeafletMap';
 import { ReportList } from '@/components/ReportList';
 import { Button, Chip, ErrorText, Heading, Icon, StatusBadge, useStyles, useTabBarSpace } from '@/components/ui';
 import { announce } from '@/lib/a11y';
 import { api, errorText, PublicReport } from '@/lib/api';
-import { CATEGORY_LABELS, nearbyLabel, sourceLabels, STATUS_LABELS, t, timeAgo } from '@/lib/i18n';
+import { useA11y } from '@/lib/a11ySettings';
+import { CATEGORY_LABELS, nearbyLabel, sourceLabels, STATUS_LABELS, STATUS_LETTERS, t, timeAgo } from '@/lib/i18n';
 import { usePosition } from '@/lib/position';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, radius, StatusKey, TOUCH } from '@/theme';
@@ -23,8 +25,18 @@ export default function PublicMapScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'map' | 'list'>('map');
+  const { srMode } = useA11y();
+  // The screen-reader mode opens on the list ("Probleme semnalate în apropiere"); the map stays one tap away.
+  const [view, setView] = useState<'map' | 'list'>(srMode ? 'list' : 'map');
   const position = usePosition();
+
+  useEffect(() => {
+    if (srMode) setView('list');
+  }, [srMode]);
+
+  useEffect(() => {
+    if (view === 'list' && position.status === 'idle') void position.request();
+  }, [view, position]);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,6 +65,8 @@ export default function PublicMapScreen() {
         lat: r.lat,
         lon: r.lon,
         color: colors.status[r.status as StatusKey] ?? colors.status.submitted,
+        letter: STATUS_LETTERS[r.status],
+        label: `${CATEGORY_LABELS[r.category] ?? r.category}, ${STATUS_LABELS[r.status] ?? r.status}`,
       })),
     [reports, colors],
   );
@@ -63,10 +77,7 @@ export default function PublicMapScreen() {
     if (!loading && !error) announce(t.mapLoaded.replace('{n}', String(reports.length)));
   }, [loading, error, reports.length]);
 
-  const showList = () => {
-    setView('list');
-    if (position.status === 'idle') void position.request();
-  };
+  const showList = () => setView('list');
 
   return (
     <View style={[styles.screen, { paddingBottom: tabSpace - 16 }]}>
@@ -195,7 +206,9 @@ export default function PublicMapScreen() {
                   importantForAccessibility="no"
                   accessibilityElementsHidden
                 />
-                <Text style={[styles.muted, { fontSize: 12 }]}>{label}</Text>
+                <Text style={[styles.muted, { fontSize: 12 }]}>
+                  {colors.highContrast ? `${STATUS_LETTERS[k]} = ${label}` : label}
+                </Text>
               </View>
             ))}
         </View>

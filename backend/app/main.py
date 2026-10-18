@@ -7,16 +7,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import Settings, load_settings
 from .db import connect, init_db
 from .errors import request_validation_handler
-from .routers import auth, public, reports, review
+from .geocoding import AreaStreetWorker, Geocoder
+from .routers import auth, geo, public, reports, review
 from .safety import EMERGENCY_MESSAGE_EN, EMERGENCY_MESSAGE_RO
 from .seed import seed_demo_reports
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, geocoder: Geocoder | None = None) -> FastAPI:
     settings = settings or load_settings()
     app = FastAPI(title="Iași SafeFlow API", version="0.1.0")
     app.state.settings = settings
     app.state.login_failures = {}
+    app.state.geo_usage = {}
+    app.state.geocoder = geocoder or Geocoder(settings)
+    app.state.area_streets = AreaStreetWorker(app.state.geocoder, settings.database_path)
 
     conn = connect(settings.database_path)
     try:
@@ -24,8 +28,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         auth.seed_demo_reviewer(conn, settings)
         if settings.seed_demo_data:
             seed_demo_reports(conn)
+        app.state.area_streets.enqueue_public_reports(conn)
     finally:
         conn.close()
+    app.state.area_streets.start()  # no-op when street names are disabled
 
     if any("*" in o for o in settings.allowed_origins):
         raise ValueError("Wildcard CORS origins are not allowed.")
@@ -41,7 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.add_exception_handler(RequestValidationError, request_validation_handler)
-    for r in (auth.router, reports.router, public.router, review.router):
+    for r in (auth.router, reports.router, public.router, review.router, geo.router):
         app.include_router(r)
 
     @app.get("/health")

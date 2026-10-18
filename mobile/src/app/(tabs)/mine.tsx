@@ -1,7 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
+import { ReadAloudButton } from '@/components/ReadAloudButton';
 import { Button, Card, ErrorText, Field, Heading, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, ApiError, errorText, OwnReport, PublicReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -114,6 +116,7 @@ export default function MyReportsScreen() {
               <View style={styles.row}>
                 <SourceBadge simulated={r.is_simulated} verification={r.verification} />
               </View>
+              <ReadAloudButton text={ownReportLabel(r)} />
             </Card>
           ))}
         </>

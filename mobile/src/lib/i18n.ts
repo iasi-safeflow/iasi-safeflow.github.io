@@ -26,6 +26,18 @@ export const STATUS_LABELS: Record<string, string> = {
   expired: 'Expirat',
 };
 
+// One letter per status, drawn inside map markers in high contrast so status is never told by colour alone.
+// The legend under the map pairs each letter with its status name.
+export const STATUS_LETTERS: Record<string, string> = {
+  submitted: 'P',
+  under_review: 'A',
+  validated: 'V',
+  referred: 'S',
+  resolved: 'R',
+  rejected: 'X',
+  expired: 'E',
+};
+
 // Reviewer-facing short labels for the required rejection reason.
 export const REJECTION_REASON_LABELS: Record<string, string> = {
   duplicate: 'Duplicat',
@@ -208,6 +220,59 @@ export const t = {
   gps: 'GPS',
   pin: 'Punct pe hartă',
 
+  // Accessibility (Cont → Accesibilitate) and the screen-reader mode.
+  a11yTitle: 'Accesibilitate',
+  srModeLabel: 'Mod cititor de ecran (nevăzători)',
+  srModeHint: 'Listă în loc de hartă și formular de raportare pas cu pas.',
+  largeTextLabel: 'Text mare',
+  largeTextHint: 'Mărește tot textul aplicației, peste setarea telefonului.',
+  highContrastLabel: 'Contrast ridicat',
+  highContrastHint: 'Culori cu contrast puternic, contururi groase și litere pe punctele de pe hartă.',
+  feedbackLabel: 'Vibrații și sunete',
+  feedbackHint: 'Vibrații scurte la trimiterea raportului, la erori și la ecranul 112.',
+  srPrompt: 'Folosiți un cititor de ecran. Activați modul simplificat pentru nevăzători?',
+  srPromptYes: 'Da',
+  srPromptNo: 'Nu, mulțumesc',
+  srPromptLater: 'Îl puteți activa oricând din Cont → Accesibilitate.',
+  readAloud: 'Citește cu voce tare',
+  readAloudStop: 'Oprește citirea',
+  readAloudHint: 'Citește conținutul cu vocea telefonului.',
+  dictationHint: 'Puteți dicta descrierea folosind microfonul tastaturii.',
+  streetPrivacy:
+    'Pentru numele străzii, serverul SafeFlow trimite coordonatele rotunjite (~10 m) către serviciul OpenStreetMap Nominatim, fără date despre dvs.',
+  osmAttribution: 'Nume de străzi: © contribuitorii OpenStreetMap.',
+
+  // Step-by-step report form (screen-reader mode).
+  stepOf: 'Pasul {x} din 5',
+  stepSafety: 'Siguranță',
+  stepCategory: 'Categorie',
+  stepLocation: 'Locație',
+  stepDescription: 'Descriere',
+  stepReview: 'Verificare și trimitere',
+  next: 'Continuă',
+  back: 'Înapoi',
+  locating: 'Se stabilește locația prin GPS…',
+  locationNear: 'Locație stabilită lângă {street}, precizie {m} metri.',
+  locationAccuracy: 'Locație stabilită, precizie {m} metri.',
+  locationSetPlain: 'Locație stabilită.',
+  locationChosen: 'Locație aleasă: {label}.',
+  tryAgain: 'Încearcă din nou',
+  otherLocation: 'Folosește altă locație',
+  streetSearchLabel: 'Numele străzii sau al locului',
+  streetSearch: 'Caută',
+  streetSearchHint: 'Căutarea pornește doar când apăsați „Caută”.',
+  streetNoResults: 'Niciun rezultat în Iași pentru această căutare.',
+  streetUnavailable: 'Căutarea de străzi nu este disponibilă acum. Încercați GPS-ul.',
+  needCategory: 'Alegeți o categorie.',
+  needLocation: 'Stabiliți locația raportului.',
+  needDescription: 'Descrierea trebuie să aibă cel puțin 10 caractere.',
+  summaryDanger: 'Pericol imediat: Nu',
+  summaryCategory: 'Categorie',
+  summaryLocation: 'Locație',
+  summaryDescription: 'Descriere',
+  summaryObserved: 'Observat',
+  gpsLocation: 'poziția GPS',
+
   networkError: 'Serverul nu poate fi contactat. Verificați conexiunea și adresa API.',
   genericError: 'A apărut o eroare.',
   retry: 'Reîncearcă',
@@ -297,6 +362,15 @@ export function sourceLabels(simulated: boolean, verification = 'unverified'): s
   if (verification === 'reviewer_verified') labels.push(t.reviewerVerified);
   else if (!simulated) labels.push(t.sourceUserReport);
   return labels;
+}
+
+// Parts read out as sentences: a full stop is added only where a part doesn't already end with one.
+export function joinSentences(parts: string[]): string {
+  return parts
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => (/[.!?…]$/.test(p) ? p : `${p}.`))
+    .join(' ');
 }
 
 export function formatDateTime(iso: string): string {

@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { useA11y } from '@/lib/a11ySettings';
 import { useTheme } from '@/lib/themeMode';
 import type { MapMarker, MapProps } from './LeafletMap';
 import {
@@ -12,6 +13,8 @@ import {
   COOP_IDLE_MS,
   COOP_PULSE_MS,
   COOP_SWIPE_PX,
+  LETTER_MARKER_SIZE,
+  letterMarkerHtml,
   MAP_CSS,
   mapVars,
   pinSvg,
@@ -49,6 +52,8 @@ export function LeafletMap({
   cooperativeGestures = false,
 }: MapProps) {
   const { colors, dark } = useTheme();
+  const { srMode } = useA11y();
+  const coop = cooperativeGestures && !srMode; // off in the screen-reader mode
   const host = useRef<HTMLElement | null>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -93,7 +98,7 @@ export function LeafletMap({
   useEffect(() => {
     const m = map.current;
     const el = host.current;
-    if (!m || !el || !cooperativeGestures) return;
+    if (!m || !el || !coop) return;
     el.classList.add('sf-coop');
     let hint: HTMLDivElement | null = null;
     if (touchFirst()) {
@@ -178,7 +183,7 @@ export function LeafletMap({
       el.classList.remove('sf-coop');
       m.dragging.enable();
     };
-  }, [cooperativeGestures]);
+  }, [coop]);
 
   useEffect(() => {
     const el = host.current;
@@ -197,7 +202,20 @@ export function LeafletMap({
         selected = mk;
         return;
       }
-      L.circleMarker([mk.lat, mk.lon], { radius: 8, color: colors.card, weight: 2.5, fillColor: mk.color, fillOpacity: 1 })
+      const half = LETTER_MARKER_SIZE / 2;
+      const marker =
+        colors.highContrast && mk.letter
+          ? L.marker([mk.lat, mk.lon], {
+              title: mk.label ?? mk.letter, // Leaflet makes the marker a focusable button; this names it
+              icon: L.divIcon({
+                html: letterMarkerHtml(mk.color, colors.text, colors.card, mk.letter),
+                className: '',
+                iconSize: [LETTER_MARKER_SIZE, LETTER_MARKER_SIZE],
+                iconAnchor: [half, half],
+              }),
+            })
+          : L.circleMarker([mk.lat, mk.lon], { radius: 8, color: colors.card, weight: 2.5, fillColor: mk.color, fillOpacity: 1 });
+      marker
         .on('click', (e) => {
           L.DomEvent.stopPropagation(e);
           cb.current.onSelect?.(mk.id);

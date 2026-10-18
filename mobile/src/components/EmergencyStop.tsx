@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { Linking, Platform, Text, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { announce, focusOn } from '@/lib/a11y';
-import { t } from '@/lib/i18n';
+import { useHaptics } from '@/lib/feedback';
+import { joinSentences, t } from '@/lib/i18n';
 import { EMERGENCY_MESSAGE } from '@/lib/safety';
 import { useTheme } from '@/lib/themeMode';
 import { fonts } from '@/theme';
+import { ReadAloudButton } from './ReadAloudButton';
 import { Button, Heading, Icon, useStyles } from './ui';
 
 // Replaces the report form. Nothing typed so far is stored, queued or sent. Kept prominent and clearly red.
@@ -13,12 +16,14 @@ export function EmergencyStop({ onPastIncident, onBack }: { onPastIncident: () =
   const { colors } = useTheme();
   const styles = useStyles();
   const heading = useRef(null);
+  const haptic = useHaptics();
   // Announced at once and focused, so a screen-reader user hears the instruction before anything else. The web
   // reads the role="alert" card by itself; the phone app gets an explicit announcement.
   useEffect(() => {
     if (Platform.OS !== 'web') announce(`${t.emergencyTitle}. ${EMERGENCY_MESSAGE}`, { urgent: true });
     focusOn(heading);
-  }, []);
+    haptic('strong');
+  }, [haptic]);
   return (
     <View style={[styles.card, { borderColor: colors.alertButton, borderWidth: 2, backgroundColor: colors.alertBg }]} accessibilityRole="alert">
       <View style={[styles.row, { gap: 10, marginBottom: 8 }]}>
@@ -37,6 +42,7 @@ export function EmergencyStop({ onPastIncident, onBack }: { onPastIncident: () =
         icon="phone"
         onPress={() => Linking.openURL('tel:112')}
       />
+      <ReadAloudButton text={joinSentences([t.emergencyTitle, EMERGENCY_MESSAGE, t.emergencyPastHint])} />
       <Text style={[styles.muted, { color: colors.alertText, marginTop: 16, marginBottom: 8 }]}>{t.emergencyPastHint}</Text>
       <Button title={t.emergencyPastButton} variant="secondary" onPress={onPastIncident} />
       <Button title={t.emergencyBack} variant="secondary" onPress={onBack} />

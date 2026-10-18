@@ -1,23 +1,28 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { EmergencyStop } from '@/components/EmergencyStop';
 import { LeafletMap } from '@/components/LeafletMap';
 import { ObservedAtField } from '@/components/ObservedAtField';
+import { ReportSteps, StepPick } from '@/components/ReportSteps';
 import { Button, Card, Chip, ErrorText, Field, Heading, Label, SourceBadge, useStyles } from '@/components/ui';
 import { announce, focusOn } from '@/lib/a11y';
+import { useA11y } from '@/lib/a11ySettings';
+import { useHaptics } from '@/lib/feedback';
 import { api, ApiError, errorText, OwnReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { CATEGORY_LABELS, EMERGENCY_CATEGORY, EMERGENCY_CATEGORY_LABEL, t } from '@/lib/i18n';
 import { needsEmergencyStop } from '@/lib/safety';
 
-type Pick = { lat: number; lon: number; source: 'pin' | 'gps'; accuracy?: number };
+type Pick = StepPick;
 
 export default function ReportScreen() {
   const { user, token, sessionEnded } = useAuth();
   const styles = useStyles();
+  const { srMode } = useA11y();
   const [danger, setDanger] = useState<boolean | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [pick, setPick] = useState<Pick | null>(null);
@@ -31,13 +36,15 @@ export default function ReportScreen() {
   const [result, setResult] = useState<OwnReport | null>(null);
   const [mapLocked, setMapLocked] = useState(false); // two fingers on the map: the form stops scrolling
   const sentHeading = useRef(null);
+  const haptic = useHaptics();
 
   // The new report's ID is read out and focus moves to the confirmation.
   useEffect(() => {
     if (!result) return;
     announce(`${t.submitted}. ${t.reportId} ${spellId(result.public_id)}.`);
     focusOn(sentHeading);
-  }, [result]);
+    haptic('success');
+  }, [result, haptic]);
 
   const reset = (keepPastIncident = false) => {
     // Nothing from a stopped submission is kept, including the description.
@@ -149,6 +156,33 @@ export default function ReportScreen() {
 
   const canSubmit = danger === false && !!category && !!pick && description.trim().length >= 10 && !!user;
 
+  // Screen-reader mode: the same report, one question per screen.
+  if (srMode) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ReportSteps
+          token={token}
+          signedIn={!!user}
+          sessionEnded={sessionEnded}
+          danger={danger}
+          setDanger={setDanger}
+          category={category}
+          setCategory={setCategory}
+          pick={pick}
+          setPick={setPick}
+          description={description}
+          setDescription={setDescription}
+          observedAt={observedAt}
+          setObservedAt={setObservedAt}
+          gate={gate}
+          submit={submit}
+          busy={busy}
+          error={error}
+        />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.screen}
@@ -233,6 +267,7 @@ export default function ReportScreen() {
             onChangeText={setDescription}
             onBlur={() => gate({ description })}
             placeholder={t.descriptionPlaceholder}
+            hint={t.dictationHint}
             multiline
             maxLength={1000}
             style={{ minHeight: 100, textAlignVertical: 'top' }}

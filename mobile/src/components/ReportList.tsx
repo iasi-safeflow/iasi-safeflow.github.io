@@ -1,5 +1,6 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { PublicReport } from '@/lib/api';
 import { describeFrom, Point, sortByDistance } from '@/lib/geo';
 import { CATEGORY_LABELS, sourceLabels, STATUS_LABELS, t, timeAgo } from '@/lib/i18n';
@@ -7,24 +8,17 @@ import { StatusBadge, useStyles } from './ui';
 
 // Text alternative to the map: the same reports as a list, nearest first when the position is known.
 // Each item is one element for screen readers, read as a single sentence.
-export function ReportList({
-  reports,
-  origin,
-  streets = {},
-}: {
-  reports: PublicReport[];
-  origin: Point | null;
-  streets?: Record<string, string>;
-}) {
+export function ReportList({ reports, origin }: { reports: PublicReport[]; origin: Point | null }) {
   const styles = useStyles();
   if (reports.length === 0) return <Text style={styles.muted}>{t.listEmpty}</Text>;
+  const anyStreet = reports.some((r) => r.area_street);
   return (
     <View role="list">
       {sortByDistance(reports, origin).map((r) => {
         const category = CATEGORY_LABELS[r.category] ?? r.category;
         const status = STATUS_LABELS[r.status] ?? r.status;
         const where = origin ? describeFrom(origin, r) : null;
-        const street = streets[r.public_id];
+        const street = r.area_street;
         const source = sourceLabels(r.is_simulated, r.verification).join(', ');
         const spoken = [category, status, where, street && `${t.nearStreet} ${street}`, timeAgo(r.observed_date), source]
           .filter(Boolean)
@@ -46,6 +40,7 @@ export function ReportList({
           </View>
         );
       })}
+      {anyStreet && <Text style={styles.muted}>{t.osmAttribution}</Text>}
     </View>
   );
 }

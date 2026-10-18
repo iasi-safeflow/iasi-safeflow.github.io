@@ -1,6 +1,7 @@
 import { useNetworkState } from 'expo-network';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { fonts } from '@/theme';

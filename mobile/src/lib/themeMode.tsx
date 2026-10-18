@@ -2,6 +2,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { useColorScheme } from 'react-native';
 
 import { palettes, ThemeColors } from '@/theme';
+import { useA11y } from './a11ySettings';
 import { readToken, writeToken } from './tokenStore';
 
 // Light/dark theme. 'auto' follows the phone or browser setting; the choice is saved on the device in the same
@@ -35,8 +36,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     void writeToken(MODE_KEY, m);
   }, []);
 
+  const { prefs } = useA11y();
   const dark = mode === 'dark' || (mode === 'auto' && system === 'dark');
-  const value = useMemo(() => ({ mode, setMode, dark, colors: dark ? palettes.dark : palettes.light }), [mode, setMode, dark]);
+  // "Contrast ridicat" (Cont → Accesibilitate) swaps in the high-contrast token set for the same light/dark choice.
+  const colors = prefs.highContrast ? (dark ? palettes.hcDark : palettes.hcLight) : dark ? palettes.dark : palettes.light;
+  const value = useMemo(() => ({ mode, setMode, dark, colors }), [mode, setMode, dark, colors]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

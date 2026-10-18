@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleProp, ViewStyle } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 
+import { useA11y } from '@/lib/a11ySettings';
 import { useTheme } from '@/lib/themeMode';
 import {
   APPROX_RADIUS_M,
@@ -9,6 +10,8 @@ import {
   COOP_IDLE_MS,
   COOP_PULSE_MS,
   COOP_SWIPE_PX,
+  LETTER_MARKER_SIZE,
+  letterMarkerHtml,
   MAP_CSS,
   mapVars,
   pinSvg,
@@ -25,6 +28,8 @@ export type MapMarker = {
   lat: number;
   lon: number;
   color: string; // status colour from the theme
+  letter?: string; // status letter, drawn inside the marker in high contrast
+  label?: string; // accessible name of a focusable (letter) marker, e.g. "Iluminat slab, În analiză"
 };
 
 export type MapProps = {
@@ -37,6 +42,7 @@ export type MapProps = {
   center?: { lat: number; lon: number; zoom?: number };
   style?: StyleProp<ViewStyle>;
   // For maps inside a scrolling screen: one finger scrolls the page, two fingers move and zoom the map.
+  // Always off in the screen-reader mode, where it would clash with TalkBack/VoiceOver gestures.
   cooperativeGestures?: boolean;
   // Phone app only: true while two fingers are on the map, so the parent ScrollView can stop scrolling.
   onGestureLock?: (locked: boolean) => void;
@@ -63,6 +69,12 @@ var layer = L.layerGroup().addTo(map);
 var pickMarker = null, pickable = false, ring = null; // ring is set by sfSetTheme before anything is drawn
 // The pin SVG is passed as text with placeholders (release builds can't turn a JS function back into source).
 var PIN = ${JSON.stringify(pinSvg('__FILL__', '__RING__'))};
+var LETTER = ${JSON.stringify(letterMarkerHtml('__FILL__', '__OUTLINE__', '__INK__', '__LETTER__'))};
+var outline = null, highContrast = false;
+function letterIcon(m){
+  var html = LETTER.split('__FILL__').join(m.color).split('__OUTLINE__').join(outline).split('__INK__').join(ring).split('__LETTER__').join(m.letter);
+  return L.divIcon({ html: html, className: '', iconSize: [${LETTER_MARKER_SIZE}, ${LETTER_MARKER_SIZE}], iconAnchor: [${LETTER_MARKER_SIZE / 2}, ${LETTER_MARKER_SIZE / 2}] });
+}
 function pinIcon(fill){
   var html = PIN.split('__FILL__').join(fill).split('__RING__').join(ring);
   return L.divIcon({ html: html, className: '', iconSize: [34, 44], iconAnchor: [17, 42] });
@@ -72,6 +84,8 @@ window.sfSetTheme = function(dark, vars){
   Object.keys(vars).forEach(function(k){ root.style.setProperty(k, vars[k]); });
   el.classList.toggle('sf-dark', dark);
   ring = vars['--sf-card'];
+  outline = vars['--sf-text'];
+  highContrast = vars['--sf-hc'] === '1';
 };
 window.sfSetView = function(lat, lon, zoom){ map.setView([lat, lon], zoom); };
 var lastSelected = null;
@@ -80,7 +94,8 @@ window.sfSetMarkers = function(list, selectedId){
   var selected = null;
   list.forEach(function(m){
     if (m.id === selectedId) { selected = m; return; }
-    L.circleMarker([m.lat, m.lon], { radius: 8, color: ring, weight: 2.5, fillColor: m.color, fillOpacity: 1 })
+    (highContrast && m.letter ? L.marker([m.lat, m.lon], { icon: letterIcon(m), title: m.label || m.letter })
+      : L.circleMarker([m.lat, m.lon], { radius: 8, color: ring, weight: 2.5, fillColor: m.color, fillOpacity: 1 }))
       .on('click', function(e){ L.DomEvent.stopPropagation(e); send({ type: 'select', id: m.id }); }).addTo(layer);
   });
   if (selected) {
@@ -169,6 +184,8 @@ export function LeafletMap({
   onGestureLock,
 }: MapProps) {
   const { colors, dark } = useTheme();
+  const { srMode } = useA11y();
+  const coop = cooperativeGestures && !srMode;
   // Explicit generic: the package's default (P = undefined) collapses props to 'never' under TS 6.
   const ref = useRef<WebView<{}>>(null);
   const ready = useRef(false);
@@ -205,11 +222,11 @@ export function LeafletMap({
     if (!ready.current) return;
     ref.current?.injectJavaScript(
       `window.sfSetTheme(${dark}, ${JSON.stringify(mapVars(colors))});` +
-        `window.sfSetCoop(${cooperativeGestures}, ${reduceMotion});` +
+        `window.sfSetCoop(${coop}, ${reduceMotion});` +
         `window.sfSetMarkers(${JSON.stringify(markers)}, ${JSON.stringify(selectedId)});` +
         `window.sfSetPick(${JSON.stringify(pick)}, ${pickable}, ${JSON.stringify(colors.primary)}); true;`,
     );
-  }, [markers, selectedId, pick, pickable, colors, dark, cooperativeGestures, reduceMotion]);
+  }, [markers, selectedId, pick, pickable, colors, dark, coop, reduceMotion]);
 
   useEffect(push, [push]);
 

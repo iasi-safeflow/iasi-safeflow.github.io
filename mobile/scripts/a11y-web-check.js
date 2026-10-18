@@ -5,7 +5,8 @@
 //
 // Env: CHROME_PATH (default: the usual Windows install path), SF_REPORTER_TOKEN / SF_REVIEWER_TOKEN (optional:
 // session tokens for the signed-in screens). The API must allow the origin http://127.0.0.1:<port> (CORS).
-// Exits with 1 when any screen has a "serious" or "critical" violation, in light or dark mode.
+// Exits with 1 when any screen has a "serious" or "critical" violation in any mode (light, dark, high contrast,
+// large text).
 const { spawn } = require('child_process');
 const fs = require('fs');
 const http = require('http');
@@ -23,20 +24,35 @@ const CHROME = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Ap
 const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// [name, path, token env, step]. A step clicks the element whose accessible text ends with the given label.
+// [name, path, token env, steps, settings]. Steps click, in order, the elements whose accessible text ends with
+// each label. Settings are saved as the "Accesibilitate" preferences before the screen loads.
+const SR = { screenReaderMode: true };
 const SCREENS = [
   ['home-map', '/', null],
-  ['home-list', '/', null, 'Vezi lista'],
+  ['home-list', '/', null, ['Vezi lista']],
   ['report-start', '/report', null],
-  ['report-112-stop', '/report', null, 'Da'],
+  ['report-112-stop', '/report', null, ['Da']],
   ['login', '/login', null],
   ['register', '/register', null],
   ['account', '/account', null],
   ['mine', '/mine', 'SF_REPORTER_TOKEN'],
-  ['report-form', '/report', 'SF_REPORTER_TOKEN', 'Nu'],
+  ['report-form', '/report', 'SF_REPORTER_TOKEN', ['Nu']],
   ['review-queue', '/review', 'SF_REVIEWER_TOKEN'],
   ['review-detail', '/review/SF-TESTDEMA', 'SF_REVIEWER_TOKEN'],
   ['history', '/history', 'SF_REVIEWER_TOKEN'],
+  ['sr-home-list', '/', null, null, SR],
+  ['sr-steps-1', '/report', 'SF_REPORTER_TOKEN', null, SR],
+  ['sr-steps-2', '/report', 'SF_REPORTER_TOKEN', ['Nu', 'Continuă'], SR],
+];
+
+// Every screen in light and dark; the key screens also in high contrast and with large text.
+const KEY = ['home-map', 'home-list', 'report-112-stop', 'report-form', 'account', 'sr-home-list', 'sr-steps-2'];
+const MODES = [
+  { name: 'light', theme: 'light', prefs: {} },
+  { name: 'dark', theme: 'dark', prefs: {} },
+  { name: 'hc-light', theme: 'light', prefs: { highContrast: true }, only: KEY },
+  { name: 'hc-dark', theme: 'dark', prefs: { highContrast: true }, only: KEY },
+  { name: 'large-text', theme: 'light', prefs: { largeText: true }, only: KEY },
 ];
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.ico': 'image/x-icon' };
@@ -82,30 +98,39 @@ function serve() {
     };
     const send = (method, params = {}) => new Promise((r) => { pending.set(++id, r); ws.send(JSON.stringify({ id, method, params })); });
     const ev = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result?.value;
+    // Clicks the button/radio whose accessible text ends with `label` (icon glyphs come before a line break).
+    const click = (label) =>
+      ev(`(() => {
+        const el = [...document.querySelectorAll('[role=button],[role=radio]')]
+          .find((e) => (e.getAttribute('aria-label') || e.innerText || '').trim().split(String.fromCharCode(10)).pop().trim() === ${JSON.stringify(label)});
+        if (!el) return false; el.click(); return true; })()`);
     const base = `http://127.0.0.1:${PORT}`;
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await send('Page.navigate', { url: base + '/account' });
     await sleep(1500);
 
     let failures = 0;
-    for (const theme of ['light', 'dark']) {
-      for (const [name, route, tokenEnv, step] of SCREENS) {
+    for (const mode of MODES) {
+      for (const [name, route, tokenEnv, steps, screenPrefs] of SCREENS) {
+        if (mode.only && !mode.only.includes(name)) continue;
+        const label = `${mode.name}/${name}`;
         const token = tokenEnv ? process.env[tokenEnv] : '';
         if (tokenEnv && !token) {
-          console.log(`skip  ${theme}/${name} (${tokenEnv} not set)`);
+          console.log(`skip  ${label} (${tokenEnv} not set)`);
           continue;
         }
-        await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: theme }] });
-        await ev(`localStorage.clear(); localStorage.setItem('safeflow.theme', '${theme}');` +
-          (token ? `localStorage.setItem('safeflow.session', ${JSON.stringify(token)});` : '') + 'true');
+        const prefs = { srPromptAnswered: true, ...mode.prefs, ...(screenPrefs || {}) };
+        await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: mode.theme }] });
+        await ev(
+          `localStorage.clear(); localStorage.setItem('safeflow.theme', '${mode.theme}');` +
+            `localStorage.setItem('safeflow.a11y', ${JSON.stringify(JSON.stringify(prefs))});` +
+            (token ? `localStorage.setItem('safeflow.session', ${JSON.stringify(token)});` : '') +
+            'true',
+        );
         await send('Page.navigate', { url: base + route });
         await sleep(2500);
-        if (step) {
-          const clicked = await ev(`(() => {
-            const el = [...document.querySelectorAll('[role=button],[role=radio]')]
-              .find((e) => (e.getAttribute('aria-label') || e.innerText || '').trim().split('\\n').pop().trim() === ${JSON.stringify(step)});
-            if (!el) return false; el.click(); return true; })()`);
-          if (!clicked) console.log(`warn  ${theme}/${name}: "${step}" not found`);
+        for (const step of steps || []) {
+          if (!(await click(step))) console.log(`warn  ${label}: "${step}" not found`);
           await sleep(1500);
         }
         await ev(AXE + ';true');
@@ -113,7 +138,7 @@ function serve() {
           id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) })))`);
         const serious = (result || []).filter((v) => v.impact === 'serious' || v.impact === 'critical');
         const minor = (result || []).length - serious.length;
-        console.log(`${serious.length ? 'FAIL' : 'ok  '}  ${theme}/${name}: ${serious.length} serious/critical, ${minor} minor/moderate`);
+        console.log(`${serious.length ? 'FAIL' : 'ok  '}  ${label}: ${serious.length} serious/critical, ${minor} minor/moderate`);
         for (const v of result || []) console.log(`        [${v.impact}] ${v.id}: ${v.help} -> ${v.nodes.join(' | ')}`);
         failures += serious.length;
       }

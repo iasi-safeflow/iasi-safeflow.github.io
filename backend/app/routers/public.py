@@ -5,18 +5,19 @@ Held reports (public_visibility = 'held') never appear here, not even by ID, unt
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from ..deps import get_db
 from ..domain import PUBLIC_COORD_DECIMALS, PUBLIC_HIDDEN_STATUSES, verification
 from ..errors import api_error
+from ..geocoding import area_street
 
 router = APIRouter(prefix="/public", tags=["public"])
 
 _HIDDEN = ",".join("?" * len(PUBLIC_HIDDEN_STATUSES))
 
 
-def public_report_out(row: sqlite3.Row) -> dict:
+def public_report_out(row: sqlite3.Row, street: str | None = None) -> dict:
     return {
         "public_id": row["public_id"],
         "category": row["category"],
@@ -28,11 +29,14 @@ def public_report_out(row: sqlite3.Row) -> dict:
         "source_type": row["source_type"],
         "is_simulated": bool(row["is_simulated"]),
         "verification": verification(row["status"]),
+        # Street near the approximate (~100 m) location, from OpenStreetMap; null until looked up.
+        "area_street": street,
     }
 
 
 @router.get("/reports")
 def public_reports(
+    request: Request,
     category: str | None = Query(default=None),
     status: str | None = Query(default=None),
     db: sqlite3.Connection = Depends(get_db),
@@ -46,7 +50,9 @@ def public_reports(
         sql += " AND status = ?"
         params.append(status)
     sql += " ORDER BY observed_at DESC LIMIT 1000"
-    return [public_report_out(r) for r in db.execute(sql, params).fetchall()]
+    geocoder = request.app.state.geocoder
+    rows = db.execute(sql, params).fetchall()
+    return [public_report_out(r, area_street(geocoder, db, r["lat"], r["lon"])) for r in rows]
 
 
 @router.get("/reports/{public_id}")

@@ -5,15 +5,16 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   TextInputProps,
   useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
 
+import { Text, TextInput } from '@/components/AppText';
 import { announce } from '@/lib/a11y';
+import { useA11y } from '@/lib/a11ySettings';
+import { useHaptics } from '@/lib/feedback';
 import { sourceLabels, STATUS_LABELS } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, radius, StatusKey, ThemeColors, TOUCH } from '@/theme';
@@ -110,6 +111,56 @@ export function Chip({
   );
 }
 
+// An on/off setting: the whole row is one switch for screen readers and one touch target.
+export function SettingSwitch({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  return (
+    <Pressable
+      role="switch"
+      aria-checked={value}
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      onPress={() => onChange(!value)}
+      style={({ pressed }) => [
+        { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: TOUCH, paddingVertical: 8 },
+        { opacity: pressed ? 0.85 : 1 },
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.label}>{label}</Text>
+        {hint ? <Text style={styles.muted}>{hint}</Text> : null}
+      </View>
+      {/* Drawn, not a native Switch, so there is a single focusable control per setting. */}
+      <View
+        style={{
+          width: 52,
+          height: 32,
+          borderRadius: 16,
+          padding: 3,
+          justifyContent: 'center',
+          alignItems: value ? 'flex-end' : 'flex-start',
+          backgroundColor: value ? colors.primary : colors.card,
+          borderWidth: Math.max(colors.lineWidth, 1.5),
+          borderColor: value ? colors.primary : colors.muted,
+        }}
+      >
+        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: value ? colors.onPrimary : colors.muted }} />
+      </View>
+    </Pressable>
+  );
+}
+
 // `hint` is shown under the field and also read by screen readers as the field's hint.
 export function Field({ label, hint, ...props }: TextInputProps & { label: string; hint?: string }) {
   const { colors } = useTheme();
@@ -199,9 +250,12 @@ export function SourceBadge({ simulated, verification }: { simulated: boolean; v
 // (the web reads role="alert" by itself; the phone app gets an explicit announcement).
 export function ErrorText({ children }: { children: ReactNode }) {
   const styles = useStyles();
+  const haptic = useHaptics();
   useEffect(() => {
-    if (Platform.OS !== 'web' && typeof children === 'string' && children) announce(children, { urgent: true });
-  }, [children]);
+    if (typeof children !== 'string' || !children) return;
+    if (Platform.OS !== 'web') announce(children, { urgent: true });
+    haptic('warning');
+  }, [children, haptic]);
   return children ? (
     <Text style={styles.error} role={Platform.OS === 'web' ? 'alert' : undefined}>
       {children}
@@ -215,9 +269,10 @@ export function useStyles() {
   return useMemo(() => makeStyles(colors, tabSpace), [colors, tabSpace]);
 }
 
-// How much larger than normal text is drawn (the phone's or browser's font size setting).
+// How much larger than normal text is drawn: the phone's or browser's font size times "Text mare".
 export function useTextScale(): number {
-  return useWindowDimensions().fontScale || 1;
+  const { textFactor } = useA11y();
+  return (useWindowDimensions().fontScale || 1) * textFactor;
 }
 
 // The floating tab bar grows with large text so its labels are never clipped.
@@ -241,7 +296,7 @@ function makeStyles(c: ThemeColors, tabSpace: number) {
     mutedColor: { color: c.muted },
     label: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginBottom: 6 },
     input: {
-      borderWidth: 1,
+      borderWidth: c.lineWidth,
       borderColor: c.border,
       borderRadius: radius.input,
       paddingHorizontal: 14,
@@ -264,7 +319,7 @@ function makeStyles(c: ThemeColors, tabSpace: number) {
     buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     buttonText: { fontFamily: fonts.extrabold, fontSize: 16, textAlign: 'center' },
     chip: {
-      borderWidth: 1,
+      borderWidth: c.lineWidth,
       borderColor: c.border,
       backgroundColor: c.card,
       borderRadius: radius.chip,
@@ -279,13 +334,13 @@ function makeStyles(c: ThemeColors, tabSpace: number) {
     card: {
       backgroundColor: c.card,
       borderRadius: radius.card,
-      borderWidth: 1,
+      borderWidth: c.lineWidth,
       borderColor: c.border,
       padding: 18,
       marginBottom: 12,
     },
     badge: { borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start', marginRight: 6, marginTop: 4 },
-    badgeOutline: { borderWidth: 1, borderColor: c.border },
+    badgeOutline: { borderWidth: c.lineWidth, borderColor: c.border },
     badgeText: { fontFamily: fonts.extrabold, fontSize: 12 },
     row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
     error: { fontFamily: fonts.bold, color: c.alertText, marginVertical: 8, fontSize: 14 },

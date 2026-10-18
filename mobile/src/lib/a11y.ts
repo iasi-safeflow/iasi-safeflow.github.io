@@ -74,7 +74,11 @@ export function useReduceMotion(): boolean {
   return useSystemFlag(AccessibilityInfo.isReduceMotionEnabled, 'reduceMotionChanged');
 }
 
-// Browsers never report a running screen reader, so on the web this stays false.
+const never = () => Promise.resolve(false);
+
+// Browsers never report a running screen reader, so on the web this is always false. (react-native-web's
+// isScreenReaderEnabled() always answers true, which would ask every web visitor about the screen-reader mode and
+// hide "Citește cu voce tare".)
 export function useScreenReader(): boolean {
-  return useSystemFlag(AccessibilityInfo.isScreenReaderEnabled, 'screenReaderChanged');
+  return useSystemFlag(Platform.OS === 'web' ? never : AccessibilityInfo.isScreenReaderEnabled, 'screenReaderChanged');
 }

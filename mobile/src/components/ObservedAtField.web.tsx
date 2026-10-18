@@ -1,6 +1,7 @@
 import { createElement } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Text } from '@/components/AppText';
 import { formatDateTime, t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, radius } from '@/theme';

@@ -84,6 +84,7 @@ export type PublicReport = {
   source_type: string;
   is_simulated: boolean;
   verification: string;
+  area_street: string | null; // street near the approximate location (OpenStreetMap), when known
 };
 
 export type OwnReport = {

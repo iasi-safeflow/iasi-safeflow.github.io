@@ -108,6 +108,14 @@ MIGRATIONS: tuple[tuple[str, ...], ...] = (
            BEGIN SELECT RAISE(ABORT, 'report relations are append-only'); END""",
         "ALTER TABLE review_actions ADD COLUMN related_report_id INTEGER REFERENCES reports(id)",
     ),
+    # 3: cached street names from the geocoding service (app/geocoding.py)
+    (
+        """CREATE TABLE geocode_cache (
+               key TEXT PRIMARY KEY,
+               value_json TEXT NOT NULL,
+               fetched_at TEXT NOT NULL
+           )""",
+    ),
 )
 
 
