@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { DuplicatePill, FlagPill, ImportancePill } from '@/components/assistant';
-import { Button, Card, Chip, ErrorText, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
+import { Button, Card, Chip, ErrorText, Heading, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { CATEGORY_LABELS, formatDateTime, STATUS_LABELS, t } from '@/lib/i18n';
@@ -57,17 +57,17 @@ export default function ReviewQueueScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
     >
-      <Text style={styles.h1}>{t.queueTitle}</Text>
-      <View style={styles.chips}>
+      <Heading>{t.queueTitle}</Heading>
+      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t.filterStatus}>
         <Chip label={t.all} selected={!status} onPress={() => setStatus(null)} />
         {Object.entries(STATUS_LABELS).map(([k, label]) => (
           <Chip key={k} label={label} selected={status === k} onPress={() => setStatus(k)} />
         ))}
       </View>
       <View style={styles.chips}>
-        <Chip label={t.heldFilter} selected={heldOnly} onPress={() => setHeldOnly(!heldOnly)} />
+        <Chip label={t.heldFilter} role="button" selected={heldOnly} onPress={() => setHeldOnly(!heldOnly)} />
       </View>
-      <View style={styles.chips}>
+      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t.sortLabel}>
         <Chip label="Cele mai noi" selected={sort === 'newest'} onPress={() => setSort('newest')} />
         <Chip label="Cele mai vechi" selected={sort === 'oldest'} onPress={() => setSort('oldest')} />
         <Chip label={t.sortImportance} selected={sort === 'importance'} onPress={() => setSort('importance')} />
@@ -75,7 +75,12 @@ export default function ReviewQueueScreen() {
       <ErrorText>{error}</ErrorText>
       {items.length === 0 && !error && <Text style={styles.muted}>{t.queueEmpty}</Text>}
       {items.map((r) => (
-        <Pressable key={r.public_id} onPress={() => router.push({ pathname: '/review/[id]', params: { id: r.public_id } })}>
+        <Pressable
+          key={r.public_id}
+          accessibilityRole="button"
+          accessibilityHint={t.openReportHint}
+          onPress={() => router.push({ pathname: '/review/[id]', params: { id: r.public_id } })}
+        >
           <Card>
             <View style={styles.row}>
               <Text style={[styles.label, { flex: 1 }]}>{r.public_id}</Text>

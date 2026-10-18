@@ -37,10 +37,12 @@ export function ObservedAtField({ value, onChange }: Props) {
   }
   return (
     <>
-      <Text style={styles.body}>{formatDateTime(value.toISOString())}</Text>
+      <Text style={styles.body} accessibilityLabel={`${t.observedAt}: ${formatDateTime(value.toISOString())}`}>
+        {formatDateTime(value.toISOString())}
+      </Text>
       <View style={styles.row}>
-        <Chip label={t.now} selected={false} onPress={() => onChange(new Date())} />
-        <Chip label={t.pickDate} selected={false} onPress={pickDate} />
+        <Chip label={t.now} role="button" selected={false} onPress={() => onChange(new Date())} />
+        <Chip label={t.pickDate} role="button" selected={false} onPress={pickDate} />
       </View>
     </>
   );

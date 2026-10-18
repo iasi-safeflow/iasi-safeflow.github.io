@@ -10,18 +10,22 @@ import { Icon } from './ui';
 export function EmergencyBanner() {
   const { colors } = useTheme();
   return (
-    <View style={[s.bar, { backgroundColor: colors.alertBg }]} accessibilityRole="alert">
-      <Icon name="alert-triangle" size={20} color={colors.alertText} />
-      <Text style={[s.text, { color: colors.alertText }]}>{t.banner}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t.bannerCall}
-        onPress={() => Linking.openURL('tel:112')}
-        style={({ pressed }) => [s.call, { backgroundColor: colors.alertButton, opacity: pressed ? 0.85 : 1 }]}
-      >
-        <Icon name="phone" size={16} color={colors.onAlertButton} />
-        <Text style={[s.callText, { color: colors.onAlertButton }]}>{t.bannerCall}</Text>
-      </Pressable>
+    // First in reading order on every screen (root layout, and at the top of the home screen). On the web the
+    // labelled region is a landmark, so it can also be reached directly.
+    <View role="region" aria-label={t.emergencyRegion}>
+      <View style={[s.bar, { backgroundColor: colors.alertBg }]} accessibilityRole="alert">
+        <Icon name="alert-triangle" size={20} color={colors.alertText} />
+        <Text style={[s.text, { color: colors.alertText }]}>{t.banner}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.bannerCallA11y}
+          onPress={() => Linking.openURL('tel:112')}
+          style={({ pressed }) => [s.call, { backgroundColor: colors.alertButton, opacity: pressed ? 0.85 : 1 }]}
+        >
+          <Icon name="phone" size={16} color={colors.onAlertButton} />
+          <Text style={[s.callText, { color: colors.onAlertButton }]}>{t.bannerCall}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

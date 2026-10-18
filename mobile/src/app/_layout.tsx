@@ -8,7 +8,7 @@ import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmergencyBanner } from '@/components/EmergencyBanner';
@@ -39,6 +39,11 @@ function Shell({ ready }: { ready: boolean }) {
     void SystemUI.setBackgroundColorAsync(colors.bg);
   }, [colors.bg]);
 
+  // Web: the keyboard focus outline (public/index.html) uses the theme's focus colour.
+  useEffect(() => {
+    if (Platform.OS === 'web') document.documentElement.style.setProperty('--sf-focus', colors.focus);
+  }, [colors.focus]);
+
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (
@@ -47,20 +52,22 @@ function Shell({ ready }: { ready: boolean }) {
       {/* The 112 bar is on every screen: here above the navigator, and on the home screen below its greeting. */}
       {pathname !== '/' && <EmergencyBanner />}
       <OfflineBanner />
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: colors.bg },
-          headerStyle: { backgroundColor: colors.bg },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontFamily: fonts.extrabold },
-          headerShadowVisible: false,
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ title: 'Autentificare' }} />
-        <Stack.Screen name="register" options={{ title: 'Creează cont' }} />
-        <Stack.Screen name="review/[id]" options={{ title: 'Detalii raport' }} />
-      </Stack>
+      <View role="main" style={{ flex: 1 }}>
+        <Stack
+          screenOptions={{
+            contentStyle: { backgroundColor: colors.bg },
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.text,
+            headerTitleStyle: { fontFamily: fonts.extrabold },
+            headerShadowVisible: false,
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ title: 'Autentificare' }} />
+          <Stack.Screen name="register" options={{ title: 'Creează cont' }} />
+          <Stack.Screen name="review/[id]" options={{ title: 'Detalii raport' }} />
+        </Stack>
+      </View>
     </SafeAreaView>
   );
 }

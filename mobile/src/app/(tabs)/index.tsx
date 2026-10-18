@@ -1,12 +1,15 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { EmergencyBanner } from '@/components/EmergencyBanner';
 import { LeafletMap, MapMarker } from '@/components/LeafletMap';
-import { Chip, ErrorText, Icon, StatusBadge, TAB_BAR_SPACE, useStyles } from '@/components/ui';
+import { ReportList } from '@/components/ReportList';
+import { Button, Chip, ErrorText, Heading, Icon, StatusBadge, useStyles, useTabBarSpace } from '@/components/ui';
+import { announce } from '@/lib/a11y';
 import { api, errorText, PublicReport } from '@/lib/api';
 import { CATEGORY_LABELS, nearbyLabel, sourceLabels, STATUS_LABELS, t, timeAgo } from '@/lib/i18n';
+import { usePosition } from '@/lib/position';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, radius, StatusKey, TOUCH } from '@/theme';
 
@@ -14,11 +17,14 @@ import { fonts, radius, StatusKey, TOUCH } from '@/theme';
 export default function PublicMapScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const tabSpace = useTabBarSpace();
   const [reports, setReports] = useState<PublicReport[]>([]);
   const [category, setCategory] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'map' | 'list'>('map');
+  const position = usePosition();
 
   useFocusEffect(
     useCallback(() => {
@@ -52,8 +58,21 @@ export default function PublicMapScreen() {
   );
   const selected = reports.find((r) => r.public_id === selectedId);
 
+  // Screen-reader users hear how many reports there are once they have loaded.
+  useEffect(() => {
+    if (!loading && !error) announce(t.mapLoaded.replace('{n}', String(reports.length)));
+  }, [loading, error, reports.length]);
+
+  const showList = () => {
+    setView('list');
+    if (position.status === 'idle') void position.request();
+  };
+
   return (
-    <View style={[styles.screen, { paddingBottom: TAB_BAR_SPACE - 16 }]}>
+    <View style={[styles.screen, { paddingBottom: tabSpace - 16 }]}>
+      {/* The 112 bar comes first here too, so screen readers read it before anything else. */}
+      <EmergencyBanner />
+
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={[s.kicker, { color: colors.primarySoftText }]}>{t.homeLabel}</Text>
@@ -68,8 +87,6 @@ export default function PublicMapScreen() {
           <Icon name="user" size={22} color={colors.primarySoftText} />
         </Pressable>
       </View>
-
-      <EmergencyBanner />
 
       <Pressable
         accessibilityRole="button"
@@ -87,47 +104,82 @@ export default function PublicMapScreen() {
         <Icon name="chevron-right" size={24} color={colors.onPrimary} />
       </Pressable>
 
-      <View style={[s.mapCard, { borderColor: colors.border, backgroundColor: colors.map.land }]}>
-        <LeafletMap markers={markers} selectedId={selectedId} onSelect={setSelectedId} style={{ flex: 1 }} />
-        <View pointerEvents="none" style={[s.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {loading ? (
-            <>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={[s.chipText, { color: colors.text, flex: 1 }]}>{t.mapLoading}</Text>
-            </>
-          ) : (
-            <>
-              <Icon name="map-pin" size={16} color={colors.primary} />
-              <Text style={[s.chipText, { color: colors.text }]}>{nearbyLabel(reports.length)}</Text>
-            </>
-          )}
-        </View>
-        {selected && (
-          <View style={[s.selected, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.row, { gap: 8 }]}>
-              <StatusBadge status={selected.status} />
-              <Text style={[styles.muted, { marginTop: 4, flex: 1 }]}>{timeAgo(selected.observed_date)}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.closeCard}
-                onPress={() => setSelectedId(null)}
-                hitSlop={8}
-                style={s.close}
-              >
-                <Icon name="x" size={20} color={colors.muted} />
-              </Pressable>
-            </View>
-            <Text style={[s.selectedTitle, { color: colors.text }]}>{CATEGORY_LABELS[selected.category] ?? selected.category}</Text>
-            <Text style={styles.muted}>
-              {sourceLabels(selected.is_simulated, selected.verification).join(' · ')} · {t.approxZone} · {selected.public_id}
-            </Text>
-          </View>
+      <View style={s.toggle}>
+        {view === 'map' ? (
+          <Button title={t.showList} icon="list" variant="secondary" accessibilityHint={t.showListHint} onPress={showList} />
+        ) : (
+          <Button title={t.showMap} icon="map" variant="secondary" onPress={() => setView('map')} />
         )}
       </View>
 
+      {view === 'list' ? (
+        // focusable: on the web the scrolling list can also be reached and scrolled with the keyboard.
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }} focusable>
+          <Heading level={2} style={{ marginTop: 4 }}>
+            {t.listTitle}
+          </Heading>
+          {position.status === 'locating' && <Text style={styles.muted}>{t.listLocating}</Text>}
+          {(position.status === 'denied' || position.status === 'failed') && (
+            <Text style={[styles.muted, { marginBottom: 8 }]}>{t.listNoLocation}</Text>
+          )}
+          {loading ? <Text style={styles.muted}>{t.mapLoading}</Text> : <ReportList reports={reports} origin={position.point} />}
+        </ScrollView>
+      ) : (
+        <View
+          style={[s.mapCard, { borderColor: colors.border, backgroundColor: colors.map.land }]}
+          // Phone app: the map is one item with a summary (its markers can't be explored by touch). Web: a labelled
+          // region, so Leaflet's own keyboard controls stay reachable inside it.
+          accessible={Platform.OS !== 'web'}
+          role={Platform.OS === 'web' ? 'region' : undefined}
+          accessibilityLabel={t.mapA11y.replace('{n}', String(reports.length))}
+        >
+          <LeafletMap markers={markers} selectedId={selectedId} onSelect={setSelectedId} style={{ flex: 1 }} />
+          <View pointerEvents="none" style={[s.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {loading ? (
+              <>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={[s.chipText, { color: colors.text, flex: 1 }]}>{t.mapLoading}</Text>
+              </>
+            ) : (
+              <>
+                <Icon name="map-pin" size={16} color={colors.primary} />
+                <Text style={[s.chipText, { color: colors.text }]}>{nearbyLabel(reports.length)}</Text>
+              </>
+            )}
+          </View>
+          {selected && (
+            <View style={[s.selected, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.row, { gap: 8 }]}>
+                <StatusBadge status={selected.status} />
+                <Text style={[styles.muted, { marginTop: 4, flex: 1 }]}>{timeAgo(selected.observed_date)}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.closeCard}
+                  onPress={() => setSelectedId(null)}
+                  hitSlop={8}
+                  style={s.close}
+                >
+                  <Icon name="x" size={20} color={colors.muted} />
+                </Pressable>
+              </View>
+              <Text style={[s.selectedTitle, { color: colors.text }]}>{CATEGORY_LABELS[selected.category] ?? selected.category}</Text>
+              <Text style={styles.muted}>
+                {sourceLabels(selected.is_simulated, selected.verification).join(' · ')} · {t.approxZone} · {selected.public_id}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={{ paddingHorizontal: 16 }}>
         <ErrorText>{error}</ErrorText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginTop: 10 }}
+          accessibilityRole="radiogroup"
+          accessibilityLabel={t.categoryFilter}
+        >
           <Chip label={t.all} selected={!category} onPress={() => setCategory(null)} />
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
             <Chip key={key} label={label} selected={category === key} onPress={() => setCategory(key)} />
@@ -138,7 +190,11 @@ export default function PublicMapScreen() {
             .filter(([k]) => k !== 'rejected')
             .map(([k, label]) => (
               <View key={k} style={[styles.row, { gap: 5 }]}>
-                <View style={[s.dot, { backgroundColor: colors.status[k as StatusKey] }]} />
+                <View
+                  style={[s.dot, { backgroundColor: colors.status[k as StatusKey] }]}
+                  importantForAccessibility="no"
+                  accessibilityElementsHidden
+                />
                 <Text style={[styles.muted, { fontSize: 12 }]}>{label}</Text>
               </View>
             ))}
@@ -169,6 +225,7 @@ const s = StyleSheet.create({
   ctaIcon: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: 'center', justifyContent: 'center' },
   ctaTitle: { fontFamily: fonts.black, fontSize: 18 },
   ctaSub: { fontFamily: fonts.semibold, fontSize: 14 },
+  toggle: { marginHorizontal: 16, marginTop: -6, marginBottom: 4 },
   mapCard: { flex: 1, minHeight: 220, marginHorizontal: 16, borderRadius: 26, borderWidth: 1, overflow: 'hidden' },
   chip: {
     position: 'absolute',

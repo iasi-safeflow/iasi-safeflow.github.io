@@ -14,6 +14,7 @@ export type ThemeColors = {
   onPrimary: string;
   primarySoft: string;
   primarySoftText: string;
+  focus: string; // keyboard focus outline (web)
   alertBg: string; // 112 bar and stop screen
   alertText: string;
   alertButton: string;
@@ -36,6 +37,7 @@ const light: ThemeColors = {
   onPrimary: '#FFFFFF',
   primarySoft: '#ECE5FB',
   primarySoftText: '#53389E',
+  focus: '#6941C6',
   alertBg: '#FDE8E7',
   alertText: '#8A1C14',
   alertButton: '#C62828',
@@ -72,6 +74,7 @@ const dark: ThemeColors = {
   onPrimary: '#1F0F45',
   primarySoft: '#33285A',
   primarySoftText: '#D6C8FF',
+  focus: '#D6C8FF',
   alertBg: '#41191A',
   alertText: '#FFBDB6',
   alertButton: '#D32F2F',

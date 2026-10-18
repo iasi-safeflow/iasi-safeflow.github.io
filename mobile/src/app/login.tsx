@@ -31,7 +31,7 @@ export default function LoginScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Field label={t.email} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-      <Field label={t.password} value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" />
+      <Field label={t.password} value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
       <ErrorText>{error}</ErrorText>
       <Button title={t.login} onPress={submit} loading={busy} disabled={!email || !password} />
       <Button title={t.noAccount} variant="secondary" onPress={() => router.replace('/register')} />

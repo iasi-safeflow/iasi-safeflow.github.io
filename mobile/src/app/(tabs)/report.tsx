@@ -1,12 +1,13 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { EmergencyStop } from '@/components/EmergencyStop';
 import { LeafletMap } from '@/components/LeafletMap';
 import { ObservedAtField } from '@/components/ObservedAtField';
-import { Button, Card, Chip, ErrorText, Field, Label, SourceBadge, useStyles } from '@/components/ui';
+import { Button, Card, Chip, ErrorText, Field, Heading, Label, SourceBadge, useStyles } from '@/components/ui';
+import { announce, focusOn } from '@/lib/a11y';
 import { api, ApiError, errorText, OwnReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { CATEGORY_LABELS, EMERGENCY_CATEGORY, EMERGENCY_CATEGORY_LABEL, t } from '@/lib/i18n';
@@ -29,6 +30,14 @@ export default function ReportScreen() {
   const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number; zoom: number } | undefined>();
   const [result, setResult] = useState<OwnReport | null>(null);
   const [mapLocked, setMapLocked] = useState(false); // two fingers on the map: the form stops scrolling
+  const sentHeading = useRef(null);
+
+  // The new report's ID is read out and focus moves to the confirmation.
+  useEffect(() => {
+    if (!result) return;
+    announce(`${t.submitted}. ${t.reportId} ${spellId(result.public_id)}.`);
+    focusOn(sentHeading);
+  }, [result]);
 
   const reset = (keepPastIncident = false) => {
     // Nothing from a stopped submission is kept, including the description.
@@ -65,6 +74,11 @@ export default function ReportScreen() {
       const p = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       setPick({ ...p, source: 'gps', accuracy: pos.coords.accuracy ?? undefined });
       setMapCenter({ ...p, zoom: 17 });
+      announce(
+        pos.coords.accuracy
+          ? t.gpsSetAccuracy.replace('{m}', String(Math.round(pos.coords.accuracy)))
+          : t.gpsSet,
+      );
     } catch {
       setError(t.gpsFailed);
     } finally {
@@ -115,9 +129,15 @@ export default function ReportScreen() {
     return (
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
         <Card>
-          <Text style={styles.h1}>{t.submitted}</Text>
+          <Heading ref={sentHeading}>{t.submitted}</Heading>
           <Text style={styles.muted}>{t.reportId}</Text>
-          <Text selectable style={[styles.h1, { letterSpacing: 1 }]}>{result.public_id}</Text>
+          <Text
+            selectable
+            style={[styles.h1, { letterSpacing: 1 }]}
+            accessibilityLabel={`${t.reportId} ${spellId(result.public_id)}`}
+          >
+            {result.public_id}
+          </Text>
           <SourceBadge simulated={false} />
           <Text style={[styles.body, { marginTop: 12 }]}>{t.submittedBody}</Text>
         </Card>
@@ -139,7 +159,7 @@ export default function ReportScreen() {
       {/* Step 1: the 112 question comes first and is available without an account. */}
       <Card>
         <Label>{t.dangerQuestion}</Label>
-        <View style={styles.chips}>
+        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t.dangerQuestion}>
           <Chip
             label={t.yes}
             selected={danger === true}
@@ -165,11 +185,12 @@ export default function ReportScreen() {
       {danger === false && user && (
         <>
           <Label>{t.category}</Label>
-          <View style={styles.chips}>
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t.category}>
             <Chip
               label={EMERGENCY_CATEGORY_LABEL}
               selected={false}
               danger
+              accessibilityHint={t.emergencyCategoryHint}
               onPress={() => gate({ category: EMERGENCY_CATEGORY })}
             />
             {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
@@ -179,16 +200,25 @@ export default function ReportScreen() {
 
           <Label>{t.location}</Label>
           <Text style={[styles.muted, { marginBottom: 6 }]}>{t.locationHint}</Text>
-          <LeafletMap
-            style={{ height: 260, borderRadius: 20 }}
-            cooperativeGestures
-            onGestureLock={setMapLocked}
-            pickable
-            pick={pick}
-            center={mapCenter}
-            onPick={(lat, lon) => setPick({ lat, lon, source: 'pin' })}
+          <View role="group" accessibilityLabel={t.pickMapA11y} accessibilityHint={t.locationHint}>
+            <LeafletMap
+              style={{ height: 260, borderRadius: 20 }}
+              cooperativeGestures
+              onGestureLock={setMapLocked}
+              pickable
+              pick={pick}
+              center={mapCenter}
+              onPick={(lat, lon) => setPick({ lat, lon, source: 'pin' })}
+            />
+          </View>
+          <Button
+            title={t.useGps}
+            variant="secondary"
+            icon="crosshair"
+            accessibilityHint={t.useGpsHint}
+            onPress={useGps}
+            loading={gpsBusy}
           />
-          <Button title={t.useGps} variant="secondary" icon="crosshair" onPress={useGps} loading={gpsBusy} />
           {pick && (
             <Text style={styles.muted}>
               {pick.source === 'gps' ? t.gps : t.pin}: {pick.lat.toFixed(5)}, {pick.lon.toFixed(5)}
@@ -207,7 +237,12 @@ export default function ReportScreen() {
             maxLength={1000}
             style={{ minHeight: 100, textAlignVertical: 'top' }}
           />
-          <Text style={[styles.muted, { marginTop: -8, marginBottom: 12 }]}>{description.trim().length}/1000 (minim 10)</Text>
+          <Text
+            style={[styles.muted, { marginTop: -8, marginBottom: 12 }]}
+            accessibilityLabel={t.charCount.replace('{n}', String(description.trim().length))}
+          >
+            {description.trim().length}/1000 (minim 10)
+          </Text>
 
           <Label>{t.observedAt}</Label>
           <ObservedAtField value={observedAt} onChange={setObservedAt} />
@@ -216,9 +251,20 @@ export default function ReportScreen() {
             <Text style={styles.muted}>{t.privacyNote}</Text>
           </Card>
           <ErrorText>{error}</ErrorText>
-          <Button title={busy ? t.submitting : t.submit} onPress={submit} disabled={!canSubmit} loading={busy} />
+          <Button
+            title={busy ? t.submitting : t.submit}
+            accessibilityHint={canSubmit ? undefined : t.submitDisabledHint}
+            onPress={submit}
+            disabled={!canSubmit}
+            loading={busy}
+          />
         </>
       )}
     </ScrollView>
   );
+}
+
+// "SF-AB12CD34" read character by character, so screen readers don't try to pronounce it as a word.
+function spellId(id: string): string {
+  return id.split('').filter((c) => c !== '-').join(' ');
 }

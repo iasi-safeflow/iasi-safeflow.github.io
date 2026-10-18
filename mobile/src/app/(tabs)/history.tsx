@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { DuplicatePill, FlagPill, ImportancePill, SuggestionLabel, WhyToggle } from '@/components/assistant';
-import { Button, Card, Chip, ErrorText, Icon, useStyles } from '@/components/ui';
+import { Button, Card, Chip, ErrorText, Heading, Icon, useStyles } from '@/components/ui';
 import { api, errorText, HistoryRow, ReviewerDecision } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
@@ -42,7 +42,7 @@ function FilterRow({
   return (
     <View style={{ marginBottom: 4 }}>
       <Text style={[styles.label, { fontSize: 13 }]}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="radiogroup" accessibilityLabel={label}>
         <Chip label={t.all} selected={!value} onPress={() => onChange(null)} />
         {Object.entries(options).map(([k, l]) => (
           <Chip key={k} label={l} selected={value === k} onPress={() => onChange(k)} />
@@ -104,7 +104,7 @@ export default function AssistantHistoryScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
     >
-      <Text style={styles.h1}>{t.tabHistory}</Text>
+      <Heading>{t.tabHistory}</Heading>
       <Text style={[styles.muted, { marginBottom: 12 }]}>{t.historyIntro}</Text>
       <FilterRow label={t.filterFlag} options={FLAG_LABELS} value={flag} onChange={setFlag} />
       <FilterRow label={t.filterImportance} options={IMPORTANCE_LABELS} value={importance} onChange={setImportance} />
@@ -115,6 +115,7 @@ export default function AssistantHistoryScreen() {
         <Card key={r.id}>
           <Pressable
             accessibilityRole="link"
+            accessibilityLabel={t.openReportA11y.replace('{id}', r.report_id)}
             onPress={() => router.push({ pathname: '/review/[id]', params: { id: r.report_id } })}
             style={[styles.row, { gap: 6 }]}
           >

@@ -5,7 +5,8 @@ import { ScrollView, Text, View } from 'react-native';
 import { LeafletMap } from '@/components/LeafletMap';
 import { AssistantPanel, evidenceRanges, HighlightedText } from '@/components/assistant';
 import { RejectSheet } from '@/components/RejectSheet';
-import { Button, Card, ErrorText, Field, Icon, IconName, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
+import { Button, Card, ErrorText, Field, Heading, Icon, IconName, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
+import { announce } from '@/lib/a11y';
 import { api, AssistantAnalysis, AuditEntry, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { CATEGORY_LABELS, DECISION_LABELS, formatDateTime, REJECTION_REASON_LABELS, STATUS_LABELS, t } from '@/lib/i18n';
@@ -75,6 +76,7 @@ export default function ReviewDetailScreen() {
       await api(`/review/reports/${id}/status`, { method: 'POST', token, body: { status, notes } });
       setNotes('');
       await load();
+      announce(t.statusChanged.replace('{s}', STATUS_LABELS[status] ?? status));
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -94,6 +96,7 @@ export default function ReviewDetailScreen() {
       await api(`/review/reports/${id}/status`, { method: 'POST', token, body: { status: 'rejected', reason, notes: rejectNotes } });
       setRejecting(false);
       await load();
+      announce(t.statusChanged.replace('{s}', STATUS_LABELS.rejected));
     } catch (e) {
       setRejectError(errorText(e));
     } finally {
@@ -107,6 +110,7 @@ export default function ReviewDetailScreen() {
     try {
       await api(`/review/reports/${id}/duplicates/${otherId}`, { method: 'POST', token, body: { action } });
       await load();
+      announce(t.decisionSaved);
     } catch (e) {
       setAssistantError(errorText(e));
     } finally {
@@ -148,7 +152,7 @@ export default function ReviewDetailScreen() {
       keyboardShouldPersistTaps="handled"
       scrollEnabled={!mapLocked}
     >
-      <Text style={styles.h1}>{report.public_id}</Text>
+      <Heading>{report.public_id}</Heading>
       <View style={styles.row}>
         <StatusBadge status={report.status} />
         <SourceBadge simulated={report.is_simulated} verification={report.verification} />
@@ -195,7 +199,7 @@ export default function ReviewDetailScreen() {
         center={{ lat: report.lat, lon: report.lon, zoom: 17 }}
       />
 
-      <Text style={styles.h2}>{t.changeStatus}</Text>
+      <Heading level={2}>{t.changeStatus}</Heading>
       <Field label={t.notes} value={notes} onChangeText={setNotes} maxLength={500} multiline />
       {actions.map((a) => (
         <Button
@@ -217,7 +221,7 @@ export default function ReviewDetailScreen() {
         onConfirm={reject}
       />
 
-      <Text style={styles.h2}>{t.audit}</Text>
+      <Heading level={2}>{t.audit}</Heading>
       {audit.length === 0 && <Text style={styles.muted}>{t.auditEmpty}</Text>}
       {audit.map((a) => (
         <Card key={a.id}>

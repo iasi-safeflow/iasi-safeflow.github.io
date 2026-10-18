@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Icon, IconName } from '@/components/ui';
+import { Icon, IconName, useTabBarHeight } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
@@ -18,6 +18,7 @@ export default function TabsLayout() {
   const { user, ready } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const barHeight = useTabBarHeight();
   const isReviewer = user?.role === 'reviewer';
   return (
     <Tabs
@@ -33,7 +34,7 @@ export default function TabsLayout() {
         tabBarActiveBackgroundColor: colors.primarySoft,
         tabBarLabelStyle: { fontFamily: fonts.extrabold, fontSize: 12 },
         tabBarHideOnKeyboard: true,
-        // Floating, rounded bar; scrolling screens leave room for it (TAB_BAR_SPACE).
+        // Floating, rounded bar; scrolling screens leave room for it (useTabBarSpace).
         tabBarStyle: {
           position: 'absolute',
           // Margins rather than left/right offsets: React Navigation on Android stretches the bar to full width
@@ -42,7 +43,7 @@ export default function TabsLayout() {
           right: 0,
           marginHorizontal: 16,
           bottom: Math.max(insets.bottom, 12),
-          height: 68,
+          height: barHeight,
           paddingTop: 6,
           paddingBottom: 6,
           paddingHorizontal: 6,

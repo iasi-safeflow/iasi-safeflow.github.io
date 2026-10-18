@@ -2,10 +2,10 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { Button, Card, ErrorText, Field, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
+import { Button, Card, ErrorText, Field, Heading, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, ApiError, errorText, OwnReport, PublicReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { CATEGORY_LABELS, formatDate, formatDateTime, REJECTION_REASON_TEXT, t } from '@/lib/i18n';
+import { CATEGORY_LABELS, formatDate, formatDateTime, REJECTION_REASON_TEXT, sourceLabels, STATUS_LABELS, t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 
 export default function MyReportsScreen() {
@@ -55,12 +55,20 @@ export default function MyReportsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.h2}>{t.lookupTitle}</Text>
+      <Heading level={2}>{t.lookupTitle}</Heading>
       <Field label={t.reportId} value={lookupId} onChangeText={setLookupId} autoCapitalize="characters" placeholder="SF-XXXXXXXX" />
       <Button title={t.lookup} variant="secondary" icon="search" onPress={doLookup} disabled={lookupId.trim().length < 4} />
       <ErrorText>{lookupError}</ErrorText>
       {lookup && (
-        <Card>
+        <Card
+          label={[
+            lookup.public_id,
+            CATEGORY_LABELS[lookup.category] ?? lookup.category,
+            STATUS_LABELS[lookup.status] ?? lookup.status,
+            ...sourceLabels(lookup.is_simulated, lookup.verification),
+            `${t.observed} ${formatDate(lookup.observed_date)}`,
+          ].join(', ')}
+        >
           <Text style={styles.label}>{lookup.public_id}</Text>
           <Text style={styles.body}>{CATEGORY_LABELS[lookup.category] ?? lookup.category}</Text>
           <View style={styles.row}>
@@ -73,7 +81,7 @@ export default function MyReportsScreen() {
         </Card>
       )}
 
-      <Text style={styles.h2}>{t.tabMine}</Text>
+      <Heading level={2}>{t.tabMine}</Heading>
       {!user ? (
         <Button title={t.login} onPress={() => router.push('/login')} />
       ) : (
@@ -81,7 +89,7 @@ export default function MyReportsScreen() {
           <ErrorText>{error}</ErrorText>
           {reports.length === 0 && !error && <Text style={styles.muted}>{t.mineEmpty}</Text>}
           {reports.map((r) => (
-            <Card key={r.public_id}>
+            <Card key={r.public_id} label={ownReportLabel(r)}>
               <View style={styles.row}>
                 <Text style={[styles.label, { flex: 1 }]} selectable>
                   {r.public_id}
@@ -112,4 +120,25 @@ export default function MyReportsScreen() {
       )}
     </ScrollView>
   );
+}
+
+// A report card is read as one sentence: ID, category, status, outcome, description, time, source.
+function ownReportLabel(r: OwnReport): string {
+  const outcome =
+    r.status === 'rejected' && r.rejection_reason
+      ? `${t.rejectedPrefix}: ${REJECTION_REASON_TEXT[r.rejection_reason] ?? r.rejection_reason}`
+      : r.public_visibility === 'held'
+        ? t.held
+        : null;
+  return [
+    r.public_id,
+    CATEGORY_LABELS[r.category] ?? r.category,
+    STATUS_LABELS[r.status] ?? r.status,
+    outcome,
+    r.description,
+    `${t.observed} ${formatDateTime(r.observed_at)}`,
+    ...sourceLabels(r.is_simulated, r.verification),
+  ]
+    .filter(Boolean)
+    .join(', ');
 }

@@ -16,7 +16,7 @@ import {
 } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 import { fonts, radius } from '@/theme';
-import { Button, Icon, IconName, StatusBadge, useStyles } from './ui';
+import { Button, Heading, Icon, IconName, StatusBadge, useStyles } from './ui';
 
 // Everything here shows review-assistant output: suggestions for a human reviewer, never a verification.
 
@@ -85,7 +85,7 @@ export function WhyToggle({ factors }: { factors: Factor[] }) {
     <View>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
         onPress={() => setOpen(!open)}
         hitSlop={8}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36 }}
@@ -218,7 +218,9 @@ export function AssistantPanel({
     >
       <View style={[styles.row, { gap: 8 }]}>
         <Icon name="cpu" size={22} color={colors.primarySoftText} />
-        <Text style={[styles.h2, { marginTop: 0, marginBottom: 0, flex: 1 }]}>{t.assistantTitle}</Text>
+        <Heading level={2} style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>
+          {t.assistantTitle}
+        </Heading>
       </View>
       <SuggestionLabel />
 

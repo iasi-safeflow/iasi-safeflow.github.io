@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 
 import { InstallCard } from '@/components/InstallCard';
-import { Button, Card, Chip, Label, useStyles } from '@/components/ui';
+import { Button, Card, Chip, Heading, Label, useStyles } from '@/components/ui';
 import { API_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { t } from '@/lib/i18n';
@@ -35,14 +35,14 @@ export default function AccountScreen() {
       )}
       <Card style={{ marginTop: 8 }}>
         <Label>{t.theme}</Label>
-        <View style={styles.chips} accessibilityRole="radiogroup">
+        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t.theme}>
           {THEME_OPTIONS.map(([value, label]) => (
             <Chip key={value} label={label} selected={mode === value} onPress={() => setMode(value)} />
           ))}
         </View>
       </Card>
       <InstallCard />
-      <Text style={styles.h2}>Despre SafeFlow</Text>
+      <Heading level={2}>Despre SafeFlow</Heading>
       <Text style={styles.body}>
         Iași SafeFlow este un prototip pentru semnalarea problemelor de siguranță rutieră non-urgente. Un raport este o
         observație, nu o dovadă că locul cauzează accidente. Aplicația nu este un serviciu de urgență și nu contactează
