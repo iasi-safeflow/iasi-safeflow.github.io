@@ -36,8 +36,11 @@ export default function TabsLayout() {
         // Floating, rounded bar; scrolling screens leave room for it (TAB_BAR_SPACE).
         tabBarStyle: {
           position: 'absolute',
-          left: 16,
-          right: 16,
+          // Margins rather than left/right offsets: React Navigation on Android stretches the bar to full width
+          // and ignores left/right, while margins work on both Android and the web.
+          left: 0,
+          right: 0,
+          marginHorizontal: 16,
           bottom: Math.max(insets.bottom, 12),
           height: 68,
           paddingTop: 6,

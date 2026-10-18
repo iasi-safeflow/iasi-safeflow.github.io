@@ -58,19 +58,35 @@ const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, env, stdio: 'inhe
 // Full paths, so only mobile's own folders are excluded (not every library's android/ in node_modules).
 // Native build output inside node_modules (android/build, .cxx) is never copied: it belongs to whichever folder
 // built it, and CMake caches it with absolute paths.
-function libraryBuildDirs() {
-  const nm = path.join(ROOT, 'node_modules');
+// Packages under <base>/node_modules that have an android/ folder.
+function libraryBuildDirs(base) {
+  const nm = path.join(base, 'node_modules');
   const pkgs = fs.readdirSync(nm).flatMap((name) =>
     name.startsWith('@') ? fs.readdirSync(path.join(nm, name)).map((sub) => path.join(nm, name, sub)) : [path.join(nm, name)],
   );
-  return pkgs.map((p) => path.join(p, 'android', 'build')).filter((d) => fs.existsSync(d));
+  return pkgs.filter((p) => fs.existsSync(path.join(p, 'android')));
 }
-const excluded = [...['android', 'release', 'dist', '.expo'].map((d) => path.join(ROOT, d)), ...libraryBuildDirs(), '.cxx'];
+const excluded = [
+  ...['android', 'release', 'dist', '.expo'].map((d) => path.join(ROOT, d)),
+  ...libraryBuildDirs(ROOT)
+    .map((p) => path.join(p, 'android', 'build'))
+    .filter((d) => fs.existsSync(d)),
+  '.cxx',
+];
 const sync = spawnSync('robocopy', [ROOT, WORK, '/MIR', '/XD', ...excluded, '/NFL', '/NDL', '/NJH', '/NJS', '/NP'], { stdio: 'inherit' });
 if (sync.status === null || sync.status >= 8) fail(`robocopy to ${WORK} failed (exit ${sync.status}).`);
 
 // Prebuild regenerates android/ from app.json (it also rewrites package.json scripts, but only in the mirror).
 run('npx', ['expo', 'prebuild', '-p', 'android', '--clean', '--no-install'], WORK);
+
+// Clear the libraries' native build output left in the mirror by the previous build. Every build recompiles it
+// anyway (prebuild --clean), and Gradle's own cleanup of it fails on Windows when a file is still briefly held
+// (e.g. by antivirus scanning the new .so files): "Unable to delete directory ...". rmSync retries those cases.
+for (const dir of libraryBuildDirs(WORK)) {
+  for (const sub of ['build', '.cxx']) {
+    fs.rmSync(path.join(dir, 'android', sub), { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+  }
+}
 
 const androidDir = path.join(WORK, 'android');
 // Legacy packaging extracts native libraries at install time; loading them straight from the APK fails under the
