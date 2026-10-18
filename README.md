@@ -141,7 +141,10 @@ The API URL is baked in at build time (`EXPO_PUBLIC_API_URL`, default `https://i
 ## Free-hosting caveats
 
 - **Render's free plan sleeps** after a period of inactivity. The first request afterwards can take up to about a
-  minute while it wakes (measured: 22 s after 16 minutes idle, then under 1 s). Until then the map shows no reports.
+  minute while it wakes (measured: 22 s after 16 minutes idle, then under 1 s). Until then the map shows a loading message.
+  `.github/workflows/keep-awake.yml` pings `/health` every 10 minutes to keep it awake. This is best effort: GitHub
+  can run scheduled jobs late, and disables them after 60 days without repository activity. Staying awake uses
+  ~744 of Render's 750 free instance hours per month.
 - **There is no persistent disk on the free plan.** The SQLite file is **wiped on every restart, redeploy, or sleep
   cycle**. All submitted reports and registered accounts are lost. On startup the reviewer account and the simulated
   demo dataset are recreated.

@@ -1,0 +1,42 @@
+# Pings the API every 10 minutes so Render's free instance doesn't sleep (it sleeps after ~15 idle minutes, and the
+# next request then waits ~20 s). Best effort only:
+# - GitHub may run scheduled jobs late or skip them when busy, so the API can still fall asleep sometimes.
+# - GitHub disables scheduled workflows after 60 days without repository activity; re-enable it in the Actions tab.
+# - Staying awake uses ~744 of the 750 free Render instance hours per month, so other free services in the same
+#   Render workspace would run out of hours.
+# - It does not stop the free plan wiping the SQLite file on restart or redeploy.
+# Uses the same repository variable as pages.yml (EXPO_PUBLIC_API_URL).
+name: Keep API awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-awake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+    steps:
+      - name: Ping /health
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::error::Set the repository variable EXPO_PUBLIC_API_URL to the backend URL."
+            exit 1
+          fi
+          # A sleeping instance can take up to a minute to answer. An outage is reported as a warning, not a failure,
+          # so it doesn't send a failure email every 10 minutes.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 --retry 2 --retry-delay 10 "${API_URL%/}/health" || true)
+          if [ "$code" = "200" ]; then
+            echo "API awake (HTTP 200)"
+          else
+            echo "::warning::API health check returned HTTP ${code:-none}"
+          fi
