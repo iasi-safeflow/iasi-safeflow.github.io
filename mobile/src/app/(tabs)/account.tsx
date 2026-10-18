@@ -53,6 +53,10 @@ export default function AccountScreen() {
       </Text>
       <Text style={styles.muted}>Server API: {API_URL}</Text>
       <Text style={styles.muted}>Hartă: © contribuitorii OpenStreetMap, Leaflet.</Text>
+      <Text style={styles.muted}>
+        Prioritatea de analiză a rapoartelor este sugerată automat (reguli și similaritate de text); decizia aparține
+        unui recenzent. Aplicația nu evaluează urgențe: pentru urgențe sunați la 112.
+      </Text>
     </ScrollView>
   );
 }
