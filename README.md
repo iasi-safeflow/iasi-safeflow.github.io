@@ -65,6 +65,7 @@ The same Expo Router app runs in the browser. Platform-specific pieces use `.web
 | Feature | Phone | Web |
 |---|---|---|
 | Map | Leaflet inside `react-native-webview` (`LeafletMap.tsx`) | Leaflet bundled from npm (`LeafletMap.web.tsx`) |
+| Maps inside a scrolling screen (report form, report details: `cooperativeGestures`) | one finger scrolls the page, two fingers move and zoom the map while the page stays still; an idle watermark says so | same rules for touch (watermark only on touch-first devices); a mouse drags the map and the wheel zooms it |
 | Session token | `expo-secure-store` (`tokenStore.ts`) | `localStorage` (`tokenStore.web.ts`) |
 | Observed time | native date/time picker (`ObservedAtField.tsx`) | `<input type="datetime-local">` (`ObservedAtField.web.tsx`) |
 | 112 gate and banner | shared, identical | shared, identical |

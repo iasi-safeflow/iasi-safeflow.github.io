@@ -20,6 +20,7 @@ export default function ReviewDetailScreen() {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [mapLocked, setMapLocked] = useState(false); // two fingers on the map: the page stops scrolling
 
   const load = useCallback(async () => {
     try {
@@ -71,7 +72,12 @@ export default function ReviewDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      scrollEnabled={!mapLocked}
+    >
       <Text style={styles.h1}>{report.public_id}</Text>
       <View style={styles.row}>
         <StatusBadge status={report.status} />
@@ -101,6 +107,8 @@ export default function ReviewDetailScreen() {
 
       <LeafletMap
         style={{ height: 220, borderRadius: 20 }}
+        cooperativeGestures
+        onGestureLock={setMapLocked}
         markers={markers}
         center={{ lat: report.lat, lon: report.lon, zoom: 17 }}
       />

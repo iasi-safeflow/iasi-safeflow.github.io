@@ -28,6 +28,7 @@ export default function ReportScreen() {
   const [gpsBusy, setGpsBusy] = useState(false);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number; zoom: number } | undefined>();
   const [result, setResult] = useState<OwnReport | null>(null);
+  const [mapLocked, setMapLocked] = useState(false); // two fingers on the map: the form stops scrolling
 
   const reset = (keepPastIncident = false) => {
     // Nothing from a stopped submission is kept, including the description.
@@ -129,7 +130,12 @@ export default function ReportScreen() {
   const canSubmit = danger === false && !!category && !!pick && description.trim().length >= 10 && !!user;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      scrollEnabled={!mapLocked}
+    >
       {/* Step 1: the 112 question comes first and is available without an account. */}
       <Card>
         <Label>{t.dangerQuestion}</Label>
@@ -175,6 +181,8 @@ export default function ReportScreen() {
           <Text style={[styles.muted, { marginBottom: 6 }]}>{t.locationHint}</Text>
           <LeafletMap
             style={{ height: 260, borderRadius: 20 }}
+            cooperativeGestures
+            onGestureLock={setMapLocked}
             pickable
             pick={pick}
             center={mapCenter}
