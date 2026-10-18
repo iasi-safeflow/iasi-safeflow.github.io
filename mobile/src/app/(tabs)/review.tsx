@@ -2,13 +2,14 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { Badge, Button, Card, Chip, colors, ErrorText, styles } from '@/components/ui';
+import { Button, Card, Chip, ErrorText, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { CATEGORY_LABELS, formatDateTime, STATUS_COLORS, STATUS_LABELS, t } from '@/lib/i18n';
+import { CATEGORY_LABELS, formatDateTime, STATUS_LABELS, t } from '@/lib/i18n';
 
 export default function ReviewQueueScreen() {
   const { user, token, ready } = useAuth();
+  const styles = useStyles();
   const [items, setItems] = useState<ReviewReport[]>([]);
   const [status, setStatus] = useState<string | null>('submitted');
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
@@ -70,7 +71,7 @@ export default function ReviewQueueScreen() {
           <Card>
             <View style={styles.row}>
               <Text style={[styles.label, { flex: 1 }]}>{r.public_id}</Text>
-              <Badge text={STATUS_LABELS[r.status] ?? r.status} color={STATUS_COLORS[r.status] ?? colors.muted} />
+              <StatusBadge status={r.status} />
             </View>
             <Text style={styles.body}>{CATEGORY_LABELS[r.category] ?? r.category}</Text>
             <Text style={styles.muted} numberOfLines={2}>
@@ -79,7 +80,7 @@ export default function ReviewQueueScreen() {
             <Text style={styles.muted}>
               {t.created}: {formatDateTime(r.created_at)} · {r.reporter_ref}
             </Text>
-            <Badge text={r.is_simulated ? t.sourceSimulated : t.sourceUserReport} color={colors.muted} />
+            <SourceBadge simulated={r.is_simulated} />
           </Card>
         </Pressable>
       ))}

@@ -2,13 +2,14 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 
-import { Button, ErrorText, Field, styles } from '@/components/ui';
+import { Button, ErrorText, Field, useStyles } from '@/components/ui';
 import { errorText } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { t } from '@/lib/i18n';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const styles = useStyles();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

@@ -7,7 +7,10 @@
     <title>%WEB_TITLE%</title>
     <!-- Installable web app (PWA): manifest, icons and the service worker that lets the app open offline. -->
     <meta name="description" content="Iași SafeFlow: semnalare non-urgentă a problemelor de siguranță rutieră (prototip, date simulate). Pentru urgențe sunați la 112." />
-    <meta name="theme-color" content="#0b5cad" />
+    <!-- Colours match background in src/theme.ts (light / dark). -->
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F5F3FB" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16131F" media="(prefers-color-scheme: dark)" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
@@ -26,6 +29,13 @@
       html,
       body {
         height: 100%;
+        background: #F5F3FB;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #16131F;
+        }
       }
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {

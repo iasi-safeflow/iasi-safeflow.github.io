@@ -1,29 +1,46 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { ScrollView, Text } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { InstallCard } from '@/components/InstallCard';
-import { Button, Card, styles } from '@/components/ui';
+import { Button, Card, Chip, Label, useStyles } from '@/components/ui';
 import { API_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { t } from '@/lib/i18n';
+import { ThemeMode, useTheme } from '@/lib/themeMode';
+
+const THEME_OPTIONS: [ThemeMode, string][] = [
+  ['auto', t.themeAuto],
+  ['light', t.themeLight],
+  ['dark', t.themeDark],
+];
 
 export default function AccountScreen() {
   const { user, logout } = useAuth();
+  const { mode, setMode } = useTheme();
+  const styles = useStyles();
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {user ? (
         <Card>
           <Text style={styles.body}>{user.email}</Text>
           <Text style={styles.muted}>{user.role === 'reviewer' ? t.roleReviewer : t.roleReporter}</Text>
-          <Button title={t.logout} variant="secondary" onPress={logout} />
+          <Button title={t.logout} variant="secondary" icon="log-out" onPress={logout} />
         </Card>
       ) : (
         <>
-          <Button title={t.login} onPress={() => router.push('/login')} />
+          <Button title={t.login} icon="log-in" onPress={() => router.push('/login')} />
           <Button title={t.register} variant="secondary" onPress={() => router.push('/register')} />
         </>
       )}
+      <Card style={{ marginTop: 8 }}>
+        <Label>{t.theme}</Label>
+        <View style={styles.chips} accessibilityRole="radiogroup">
+          {THEME_OPTIONS.map(([value, label]) => (
+            <Chip key={value} label={label} selected={mode === value} onPress={() => setMode(value)} />
+          ))}
+        </View>
+      </Card>
       <InstallCard />
       <Text style={styles.h2}>Despre SafeFlow</Text>
       <Text style={styles.body}>

@@ -6,7 +6,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { EmergencyStop } from '@/components/EmergencyStop';
 import { LeafletMap } from '@/components/LeafletMap';
 import { ObservedAtField } from '@/components/ObservedAtField';
-import { Badge, Button, Card, Chip, colors, ErrorText, Field, Label, styles } from '@/components/ui';
+import { Button, Card, Chip, ErrorText, Field, Label, SourceBadge, useStyles } from '@/components/ui';
 import { api, ApiError, errorText, OwnReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { CATEGORY_LABELS, EMERGENCY_CATEGORY, EMERGENCY_CATEGORY_LABEL, t } from '@/lib/i18n';
@@ -16,6 +16,7 @@ type Pick = { lat: number; lon: number; source: 'pin' | 'gps'; accuracy?: number
 
 export default function ReportScreen() {
   const { user, token, sessionEnded } = useAuth();
+  const styles = useStyles();
   const [danger, setDanger] = useState<boolean | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [pick, setPick] = useState<Pick | null>(null);
@@ -116,7 +117,7 @@ export default function ReportScreen() {
           <Text style={styles.h1}>{t.submitted}</Text>
           <Text style={styles.muted}>{t.reportId}</Text>
           <Text selectable style={[styles.h1, { letterSpacing: 1 }]}>{result.public_id}</Text>
-          <Badge text={t.sourceUserReport} color={colors.muted} />
+          <SourceBadge simulated={false} />
           <Text style={[styles.body, { marginTop: 12 }]}>{t.submittedBody}</Text>
         </Card>
         <Button title={t.newReport} onPress={() => reset()} />
@@ -136,7 +137,7 @@ export default function ReportScreen() {
           <Chip
             label={t.yes}
             selected={danger === true}
-            color={colors.danger}
+            danger
             onPress={() => {
               setDanger(true);
               gate({ immediateDanger: true });
@@ -162,7 +163,7 @@ export default function ReportScreen() {
             <Chip
               label={EMERGENCY_CATEGORY_LABEL}
               selected={false}
-              color={colors.danger}
+              danger
               onPress={() => gate({ category: EMERGENCY_CATEGORY })}
             />
             {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
@@ -173,13 +174,13 @@ export default function ReportScreen() {
           <Label>{t.location}</Label>
           <Text style={[styles.muted, { marginBottom: 6 }]}>{t.locationHint}</Text>
           <LeafletMap
-            style={{ height: 260, borderRadius: 8 }}
+            style={{ height: 260, borderRadius: 20 }}
             pickable
             pick={pick}
             center={mapCenter}
             onPick={(lat, lon) => setPick({ lat, lon, source: 'pin' })}
           />
-          <Button title={t.useGps} variant="secondary" onPress={useGps} loading={gpsBusy} />
+          <Button title={t.useGps} variant="secondary" icon="crosshair" onPress={useGps} loading={gpsBusy} />
           {pick && (
             <Text style={styles.muted}>
               {pick.source === 'gps' ? t.gps : t.pin}: {pick.lat.toFixed(5)}, {pick.lon.toFixed(5)}

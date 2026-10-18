@@ -3,14 +3,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { LeafletMap } from '@/components/LeafletMap';
-import { Badge, Button, Card, colors, ErrorText, Field, styles } from '@/components/ui';
+import { Button, Card, ErrorText, Field, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, AuditEntry, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { CATEGORY_LABELS, formatDateTime, STATUS_COLORS, STATUS_LABELS, t } from '@/lib/i18n';
+import { CATEGORY_LABELS, formatDateTime, STATUS_LABELS, t } from '@/lib/i18n';
+import { useTheme } from '@/lib/themeMode';
+import { StatusKey } from '@/theme';
 
 export default function ReviewDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token, ready } = useAuth();
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [report, setReport] = useState<ReviewReport | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [notes, setNotes] = useState('');
@@ -52,9 +56,9 @@ export default function ReviewDetailScreen() {
   const markers = useMemo(
     () =>
       report
-        ? [{ id: report.public_id, lat: report.lat, lon: report.lon, color: STATUS_COLORS[report.status], popupLines: [report.public_id] }]
+        ? [{ id: report.public_id, lat: report.lat, lon: report.lon, color: colors.status[report.status as StatusKey] ?? colors.status.submitted }]
         : [],
-    [report],
+    [report, colors],
   );
 
   if (!report) {
@@ -70,8 +74,8 @@ export default function ReviewDetailScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.h1}>{report.public_id}</Text>
       <View style={styles.row}>
-        <Badge text={STATUS_LABELS[report.status] ?? report.status} color={STATUS_COLORS[report.status] ?? colors.muted} />
-        <Badge text={report.is_simulated ? t.sourceSimulated : t.sourceUserReport} color={colors.muted} />
+        <StatusBadge status={report.status} />
+        <SourceBadge simulated={report.is_simulated} />
       </View>
 
       <Card>
@@ -96,7 +100,7 @@ export default function ReviewDetailScreen() {
       </Card>
 
       <LeafletMap
-        style={{ height: 220, borderRadius: 8 }}
+        style={{ height: 220, borderRadius: 20 }}
         markers={markers}
         center={{ lat: report.lat, lon: report.lon, zoom: 17 }}
       />
@@ -104,7 +108,7 @@ export default function ReviewDetailScreen() {
       <Text style={styles.h2}>{t.changeStatus}</Text>
       <Field label={t.notes} value={notes} onChangeText={setNotes} maxLength={500} multiline />
       {report.allowed_next.map((s) => (
-        <Button key={s} title={`→ ${STATUS_LABELS[s] ?? s}`} variant="secondary" onPress={() => change(s)} loading={busy === s} disabled={!!busy} />
+        <Button key={s} title={STATUS_LABELS[s] ?? s} icon="arrow-right" variant="secondary" onPress={() => change(s)} loading={busy === s} disabled={!!busy} />
       ))}
       <ErrorText>{error}</ErrorText>
 
@@ -112,9 +116,11 @@ export default function ReviewDetailScreen() {
       {audit.length === 0 && <Text style={styles.muted}>{t.auditEmpty}</Text>}
       {audit.map((a) => (
         <Card key={a.id}>
-          <Text style={styles.body}>
-            {STATUS_LABELS[a.from_status ?? ''] ?? a.from_status} → {STATUS_LABELS[a.to_status ?? ''] ?? a.to_status}
-          </Text>
+          <View style={[styles.row, { gap: 6 }]}>
+            <Text style={styles.body}>{STATUS_LABELS[a.from_status ?? ''] ?? a.from_status}</Text>
+            <Icon name="arrow-right" size={16} color={colors.muted} />
+            <Text style={styles.body}>{STATUS_LABELS[a.to_status ?? ''] ?? a.to_status}</Text>
+          </View>
           <Text style={styles.muted}>
             {formatDateTime(a.created_at)} · {a.reviewer_email}
           </Text>

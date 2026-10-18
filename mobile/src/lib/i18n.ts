@@ -25,15 +25,6 @@ export const STATUS_LABELS: Record<string, string> = {
   expired: 'Expirat',
 };
 
-export const STATUS_COLORS: Record<string, string> = {
-  submitted: '#1f6feb',
-  under_review: '#d29922',
-  referred: '#8957e5',
-  resolved: '#2da44e',
-  rejected: '#6e7781',
-  expired: '#6e7781',
-};
-
 export const t = {
   appName: 'Iași SafeFlow',
   banner: 'Urgență sau răniți? Sunați la 112. SafeFlow nu este un serviciu de urgență.',
@@ -47,6 +38,7 @@ export const t = {
   tabMap: 'Hartă',
   tabReport: 'Raportează',
   tabMine: 'Rapoartele mele',
+  tabMineShort: 'Ale mele',
   tabReview: 'Recenzie',
   tabAccount: 'Cont',
 
@@ -55,6 +47,16 @@ export const t = {
   mapDisclaimer:
     'Locații aproximative (~100 m). Fiecare punct este o observație a unui utilizator, nu o confirmare oficială.',
   mapLoading: 'Se încarcă rapoartele… Prima încărcare poate dura până la un minut.',
+  homeLabel: 'SafeFlow Iași',
+  greeting: 'Bună ziua! Ce ați observat azi?',
+  reportCtaTitle: 'Semnalează o problemă',
+  reportCtaSub: 'durează cam un minut',
+  approxZone: 'zonă ~100 m',
+  closeCard: 'Închide',
+  theme: 'Temă',
+  themeAuto: 'Automat',
+  themeLight: 'Luminos',
+  themeDark: 'Întunecat',
 
   dangerQuestion: 'Este cineva rănit sau există un pericol imediat chiar acum?',
   yes: 'Da',
@@ -133,4 +135,23 @@ export function formatDateTime(iso: string): string {
 export function formatDate(isoDate: string): string {
   const [y, m, d] = isoDate.slice(0, 10).split('-');
   return `${d}.${m}.${y}`;
+}
+
+// "N observații în jur", with Romanian plural rules (1 observație, 2–19 observații, 20+ de observații).
+export function nearbyLabel(n: number): string {
+  if (n === 1) return '1 observație în jur';
+  const rest = n % 100;
+  return n !== 0 && (rest === 0 || rest >= 20) ? `${n} de observații în jur` : `${n} observații în jur`;
+}
+
+// The public API gives only the observation date, so this counts whole days in local time.
+export function timeAgo(isoDate: string, now = new Date()): string {
+  const [y, m, d] = isoDate.slice(0, 10).split('-').map(Number);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((today.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000);
+  if (days <= 0) return 'azi';
+  if (days === 1) return 'ieri';
+  if (days < 20) return `acum ${days} zile`;
+  if (days <= 30) return `acum ${days} de zile`;
+  return formatDate(isoDate);
 }

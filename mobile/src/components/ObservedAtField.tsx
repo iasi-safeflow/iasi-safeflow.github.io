@@ -3,13 +3,14 @@ import { Platform, Text, View } from 'react-native';
 
 import { formatDateTime, t } from '@/lib/i18n';
 
-import { Chip, styles } from './ui';
+import { Chip, useStyles } from './ui';
 
 // Native observed-time picker. ObservedAtField.web.tsx is the browser counterpart.
 
 type Props = { value: Date; onChange: (d: Date) => void };
 
 export function ObservedAtField({ value, onChange }: Props) {
+  const styles = useStyles();
   const pickDate = () => {
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
