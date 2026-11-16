@@ -34,10 +34,12 @@ App (needs Node.js; if `npm` is not on PATH, run `$env:Path = "C:\Program Files\
 ```powershell
 cd mobile
 npm install
+npm test                  # mobile unit tests (a11y settings, contrast, distance helpers)
 npm run typecheck
 npx expo start            # phone (development build / compatible Expo Go)
 npm run web               # browser dev server
 npm run build:web         # static export to mobile/dist (+ 404.html for GitHub Pages)
+node scripts/a11y-web-check.js  # automated axe-core check against mobile/dist
 ```
 
 ## Environment variables
@@ -50,6 +52,7 @@ Backend (in `.env` locally, set in the host dashboard in production; never commi
 | `DEMO_REVIEWER_EMAIL` / `DEMO_REVIEWER_PASSWORD` | Demo reviewer account, created at startup if missing. There is no public reviewer sign-up. |
 | `SAFEFLOW_ALLOWED_ORIGINS` | Comma-separated exact browser origins allowed by CORS, e.g. `https://iasi-safeflow.github.io` (origin only, no path). Wildcards are rejected at startup. Empty = no CORS headers. |
 | `SAFEFLOW_SEED_DEMO_DATA` | `1` (default) seeds 12 labelled simulated reports **only if the database has no reports**: a duplicate pair, a held report with a deliberately invalid licence plate, a high-importance school crossing and a held vague report. `0` disables. |
+| `SAFEFLOW_GEOCODER_ENABLED`, `SAFEFLOW_GEOCODER_URL`, `SAFEFLOW_GEOCODER_USER_AGENT` | Optional OpenStreetMap Nominatim proxy settings (`1` by default, max 1 req/s shared across the backend, cached in SQLite, rounded coords). `0` disables street names and search without breaking reporting. |
 | `SAFEFLOW_DB_PATH`, `SAFEFLOW_TOKEN_MAX_AGE`, `SAFEFLOW_REPORTS_PER_HOUR` | Optional. |
 
 App (read at **build time**):
@@ -186,10 +189,20 @@ lists every check and what the reviewer did next. Formulas, weights and limitati
 - Users stay signed in only while `SAFEFLOW_SECRET_KEY` stays the same, and only until their account is wiped.
 - Rate limits are per account and in-memory. This is not production abuse protection.
 
+## Accessibility and street search
+
+- **Screen-reader support:** full Romanian labels, roles, states, spoken announcements, logical reading order (112 banner first), keyboard navigation (`lang="ro"` on web), and a **`Vezi lista`** text alternative on Home sorted by distance.
+- **Cont → Accesibilitate** (saved on device):
+  - **Mod cititor de ecran (nevăzători)** (auto-suggested once when a screen reader is active): Home opens on the nearby list, and reporting switches to a 5-step guided flow (`Pasul X din 5`) with GPS read-back + street name and `Citește cu voce tare` (`expo-speech`).
+  - **Text mare** (~1.3× scaling on top of system font size) and **Contrast ridicat** (7:1 light/dark palettes, thicker borders, lettered map markers).
+  - **Vibrații și sunete** (`expo-haptics` for report sent, errors, and 112 stop).
+- **Street search on maps:** explicit **`Caută`** bar above the Home and Report maps (no search-as-you-type), calling `/geo/search` on the backend (OpenStreetMap Nominatim, Iași-bounded, rate-limited and cached). See [docs/ACCESSIBILITY_TEST.md](docs/ACCESSIBILITY_TEST.md) for the Android TalkBack test script.
+
 ## Data sources and attribution
 
 - Map tiles © OpenStreetMap contributors (ODbL), used under the
   [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/), light demo use only.
+- Street names and search: © OpenStreetMap contributors via [Nominatim](https://operations.osmfoundation.org/policies/nominatim/) (backend-only proxy, 1 req/s shared limit, cached, explicit search only).
 - [Leaflet](https://leafletjs.com/) (BSD-2-Clause).
 - No Iași Open Data or Iași Digital feeds are integrated yet. All demo reports are simulated.
 
