@@ -19,6 +19,7 @@ def create_app(settings: Settings | None = None, geocoder: Geocoder | None = Non
     app.state.settings = settings
     app.state.login_failures = {}
     app.state.geo_usage = {}
+    app.state.confirm_usage = {}
     app.state.geocoder = geocoder or Geocoder(settings)
     app.state.area_streets = AreaStreetWorker(app.state.geocoder, settings.database_path)
 
@@ -41,7 +42,7 @@ def create_app(settings: Settings | None = None, geocoder: Geocoder | None = Non
             CORSMiddleware,
             allow_origins=list(settings.allowed_origins),
             allow_methods=["GET", "POST"],
-            allow_headers=["Authorization", "Content-Type"],
+            allow_headers=["Authorization", "Content-Type", "X-Device-Id"],
             allow_credentials=False,
             max_age=600,
         )

@@ -34,6 +34,16 @@ DEMO_REPORTS = (
     ("SF-TESTDEMB", "banda_blocata", "Autoturismul IS 00 QQQ oprește zilnic pe banda de autobuz (exemplu de test, număr fictiv).", 47.15950, 27.59640, 6, "submitted"),
     ("SF-TESTDEMC", "trecere_pietoni_nesigura", "Copiii traversează spre școală pe o trecere fără semafor, iar mașinile nu încetinesc la ora de intrare (exemplu de test).", 47.17020, 27.56880, 2, "submitted"),
     ("SF-TESTDEMD", "intersectie_periculoasa", "Periculos aici.", 47.15480, 27.60900, 12, "submitted"),
+    ("SF-TESTDEME", "tipar_near_miss", "Mașinile depășesc pe trecerea de pietoni din fața școlii fără să acorde prioritate (exemplu de test).", 47.17045, 27.56910, 14, "submitted"),
+    ("SF-TESTDEMF", "iluminat_slab", "Iluminat insuficient la trecerea spre școală dimineața devreme și seara (exemplu de test).", 47.16995, 27.56840, 26, "under_review"),
+)
+
+# Simulated citizen confirmations so hotspot clusters and corroboration appear in the demo.
+SEED_CONFIRMATIONS = (
+    ("SF-TESTDEMC", 4),
+    ("SF-TESTDEME", 2),
+    ("SF-TESTDEMA", 2),
+    ("SF-TESTDEM7", 3),
 )
 
 
@@ -55,14 +65,26 @@ def seed_demo_reports(db: sqlite3.Connection) -> int:
     now = utcnow()
     with db:
         owner = _seed_user_id(db)
+        id_by_public = {}
         for public_id, category, description, lat, lon, hours_ago, status in DEMO_REPORTS:
             observed = iso(now - timedelta(hours=hours_ago))
-            db.execute(
+            cur = db.execute(
                 """INSERT INTO reports (public_id, reporter_id, category, description, lat, lon, location_source,
                        gps_accuracy_m, observed_at, created_at, updated_at, source_type, is_simulated, status)
                    VALUES (?, ?, ?, ?, ?, ?, 'pin', NULL, ?, ?, ?, 'simulated', 1, ?)""",
                 (public_id, owner, category, SIMULATED_PREFIX + description, lat, lon, observed, observed, observed, status),
             )
+            id_by_public[public_id] = cur.lastrowid
+        for public_id, count in SEED_CONFIRMATIONS:
+            rid = id_by_public.get(public_id)
+            if rid is None:
+                continue
+            for idx in range(count):
+                db.execute(
+                    """INSERT INTO report_confirmations (report_id, actor_key, user_id, is_simulated, created_at)
+                       VALUES (?, ?, NULL, 1, ?)""",
+                    (rid, f"sim:{public_id}:{idx}", iso(now - timedelta(hours=idx + 1))),
+                )
         # Each demo report gets the same automatic check a real one would; flagged ones start out held.
         for row in db.execute("SELECT * FROM reports WHERE reporter_id = ? ORDER BY created_at, id", (owner,)).fetchall():
             result = assess(db, dict(row), now)

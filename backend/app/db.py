@@ -116,6 +116,19 @@ MIGRATIONS: tuple[tuple[str, ...], ...] = (
                fetched_at TEXT NOT NULL
            )""",
     ),
+    # 4: 1-tap citizen confirmations ("Și eu am observat") per report and actor
+    (
+        """CREATE TABLE report_confirmations (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               report_id INTEGER NOT NULL REFERENCES reports(id),
+               actor_key TEXT NOT NULL,
+               user_id INTEGER REFERENCES users(id),
+               is_simulated INTEGER NOT NULL DEFAULT 0,
+               created_at TEXT NOT NULL,
+               UNIQUE (report_id, actor_key)
+           )""",
+        "CREATE INDEX idx_report_confirmations_report ON report_confirmations (report_id)",
+    ),
 )
 
 

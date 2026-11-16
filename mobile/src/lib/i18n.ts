@@ -204,6 +204,16 @@ export const t = {
   checkedAt: 'Verificat',
   checksCount: 'verificări',
   sortImportance: 'După importanță',
+  sortConfirmations: 'După confirmări',
+  citizenConfirmations: 'Confirmări de la cetățeni',
+  modePoints: 'Puncte',
+  modeClusters: 'Zone frecvente',
+  modeGroupA11y: 'Mod de afișare pe hartă',
+  confirmMeToo: 'Și eu am observat (+1)',
+  confirmedUndo: 'Confirmat · Anulează',
+  clusterTitle: 'Tipar potențial de risc',
+  clusterEmpty: 'Nicio zonă frecventă în ultimele 30 de zile pentru acest filtru.',
+  clusterViewPoints: 'Vezi punctele',
   heldFilter: 'În așteptare (ascunse)',
   historyIntro:
     'Analiză automată explicabilă (reguli + similaritate de text). Deciziile recenzenților pot fi folosite ulterior pentru a antrena un model.',
@@ -391,10 +401,30 @@ export function formatDate(isoDate: string): string {
 }
 
 // "N observații în jur", with Romanian plural rules (1 observație, 2–19 observații, 20+ de observații).
-export function nearbyLabel(n: number): string {
-  if (n === 1) return '1 observație în jur';
+function roPlural(n: number, singular: string, plural: string): string {
+  if (n === 1) return `1 ${singular}`;
   const rest = n % 100;
-  return n !== 0 && (rest === 0 || rest >= 20) ? `${n} de observații în jur` : `${n} observații în jur`;
+  return n !== 0 && (rest === 0 || rest >= 20) ? `${n} de ${plural}` : `${n} ${plural}`;
+}
+
+export function nearbyLabel(n: number): string {
+  return `${roPlural(n, 'observație', 'observații')} în jur`;
+}
+
+export function confirmLabel(n: number): string {
+  return roPlural(n, 'confirmare', 'confirmări');
+}
+
+export function reportsCountLabel(n: number): string {
+  return roPlural(n, 'raport', 'rapoarte');
+}
+
+export function observationsCountLabel(n: number): string {
+  return roPlural(n, 'observație', 'observații');
+}
+
+export function clustersChipLabel(n: number): string {
+  return roPlural(n, 'zonă frecventă', 'zone frecvente');
 }
 
 // The public API gives only the observation date, so this counts whole days in local time.

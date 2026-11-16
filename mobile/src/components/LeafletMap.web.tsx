@@ -6,9 +6,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { useA11y } from '@/lib/a11ySettings';
 import { useTheme } from '@/lib/themeMode';
-import type { MapMarker, MapProps } from './LeafletMap';
+import type { MapCluster, MapMarker, MapProps } from './LeafletMap';
 import {
   APPROX_RADIUS_M,
+  CLUSTER_BADGE_SIZE,
+  clusterMarkerHtml,
   COOP_HINT_HTML,
   COOP_IDLE_MS,
   COOP_PULSE_MS,
@@ -44,6 +46,9 @@ export function LeafletMap({
   markers = [],
   selectedId = null,
   onSelect,
+  clusters = [],
+  selectedClusterId = null,
+  onSelectCluster,
   pick = null,
   pickable = false,
   onPick,
@@ -59,8 +64,8 @@ export function LeafletMap({
   const layer = useRef<L.LayerGroup | null>(null);
   const pickMarker = useRef<L.Marker | null>(null);
   // Refs so the single click handler always sees the latest props.
-  const cb = useRef({ pickable, onPick, onSelect });
-  cb.current = { pickable, onPick, onSelect };
+  const cb = useRef({ pickable, onPick, onSelect, onSelectCluster });
+  cb.current = { pickable, onPick, onSelect, onSelectCluster };
   const initial = useMemo(() => center ?? IASI, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -78,9 +83,12 @@ export function LeafletMap({
     } as L.TileLayerOptions).addTo(m);
     layer.current = L.layerGroup().addTo(m);
     m.on('click', (e: L.LeafletMouseEvent) => {
-      const { pickable: can, onPick: pickCb, onSelect: selectCb } = cb.current;
+      const { pickable: can, onPick: pickCb, onSelect: selectCb, onSelectCluster: clusterCb } = cb.current;
       if (can && pickCb) pickCb(e.latlng.lat, e.latlng.lng);
-      else selectCb?.(null);
+      else {
+        selectCb?.(null);
+        clusterCb?.(null);
+      }
     });
     map.current = m;
     // The container may get its final size after layout; recompute once it has settled.
@@ -236,17 +244,44 @@ export function LeafletMap({
         interactive: false,
       }).addTo(group);
     }
-  }, [markers, selectedId, colors]);
+    clusters.forEach((c: MapCluster) => {
+      const isSel = c.id === selectedClusterId;
+      L.circle([c.lat, c.lon], {
+        radius: c.radius_m,
+        color: c.color,
+        weight: isSel ? 3 : 2,
+        fillColor: c.color,
+        fillOpacity: isSel ? 0.28 : 0.16,
+        interactive: false,
+      }).addTo(group);
+      L.marker([c.lat, c.lon], {
+        title: c.label ?? String(c.count),
+        icon: L.divIcon({
+          html: clusterMarkerHtml(c.color, colors.highContrast ? colors.text : colors.card, colors.onPrimary, String(c.count), isSel),
+          className: '',
+          iconSize: [CLUSTER_BADGE_SIZE, CLUSTER_BADGE_SIZE],
+          iconAnchor: [CLUSTER_BADGE_SIZE / 2, CLUSTER_BADGE_SIZE / 2],
+        }),
+      })
+        .on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          cb.current.onSelectCluster?.(c.id);
+        })
+        .addTo(group);
+    });
+  }, [markers, selectedId, clusters, selectedClusterId, colors]);
 
-  // A newly selected report is moved into the upper third, above the report card that covers the map's bottom.
+  // A newly selected report or hotspot cluster is moved into the upper third, above the bottom card.
   useEffect(() => {
     const m = map.current;
     const mk = markers.find((x) => x.id === selectedId);
-    if (!m || !mk) return;
-    const p = m.latLngToContainerPoint([mk.lat, mk.lon]);
+    const cl = clusters.find((x) => x.id === selectedClusterId);
+    const targetPt = mk ?? cl;
+    if (!m || !targetPt) return;
+    const p = m.latLngToContainerPoint([targetPt.lat, targetPt.lon]);
     const target = L.point(m.getSize().x / 2, m.getSize().y * SELECTED_Y);
     m.panBy(p.subtract(target));
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedId, selectedClusterId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const m = map.current;

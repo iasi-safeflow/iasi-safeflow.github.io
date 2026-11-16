@@ -16,6 +16,7 @@ export const MAP_CSS = `
 .sf-hint span { overflow: hidden; text-overflow: ellipsis; }
 .sf-hint.sf-off { opacity: 0; }
 .sf-hint.sf-pulse { opacity: 1; }
+.sf-cluster { display: flex; align-items: center; justify-content: center; border-radius: 999px; font: 800 14px/1 Nunito_800ExtraBold, sans-serif; box-sizing: border-box; }
 .sf-map.sf-reduce-motion .sf-hint { transition: none; }
 @media (prefers-reduced-motion: reduce) { .sf-hint { transition: none; } }
 `;
@@ -42,6 +43,13 @@ export const letterMarkerHtml = (fill: string, outline: string, ink: string, let
   `<div aria-hidden="true" style="width:${LETTER_MARKER_SIZE}px;height:${LETTER_MARKER_SIZE}px;box-sizing:border-box;` +
   `border-radius:50%;background:${fill};border:3px solid ${outline};color:${ink};display:flex;align-items:center;` +
   `justify-content:center;font:900 13px/1 Nunito_900Black,Arial,sans-serif;">${letter}</div>`;
+
+// Hotspot cluster badge: circular observation count over a shaded area circle.
+export const CLUSTER_BADGE_SIZE = 38;
+export const clusterMarkerHtml = (fill: string, ring: string, ink: string, count: string, selected: boolean) =>
+  `<div aria-hidden="true" class="sf-cluster" style="width:${CLUSTER_BADGE_SIZE}px;height:${CLUSTER_BADGE_SIZE}px;` +
+  `background:${fill};border:${selected ? 4 : 3}px solid ${ring};color:${ink};` +
+  `box-shadow:0 2px 6px rgba(0,0,0,0.28);">${count}</div>`;
 
 export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 export const TILE_ATTRIBUTION = '&copy; contribuitorii <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';

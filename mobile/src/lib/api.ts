@@ -35,9 +35,9 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
 
 export async function api<T>(
   path: string,
-  opts: { method?: string; body?: unknown; token?: string | null } = {},
+  opts: { method?: string; body?: unknown; token?: string | null; headers?: Record<string, string> } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', ...opts.headers };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
 
@@ -85,6 +85,25 @@ export type PublicReport = {
   is_simulated: boolean;
   verification: string;
   area_street: string | null; // street near the approximate location (OpenStreetMap), when known
+  confirmations_count: number;
+  confirmed_by_me: boolean;
+};
+
+export type PublicCluster = {
+  id: string;
+  lat: number;
+  lon: number;
+  radius_m: number;
+  reports_count: number;
+  confirmations_count: number;
+  total_observations: number;
+  top_category: string;
+  categories: string[];
+  latest_observed_date: string;
+  area_street: string | null;
+  is_simulated: boolean;
+  report_ids: string[];
+  disclaimer: string;
 };
 
 export type OwnReport = {
@@ -102,6 +121,7 @@ export type OwnReport = {
   verification: string;
   public_visibility: 'public' | 'held';
   rejection_reason: string | null;
+  confirmations_count: number;
 };
 
 export type ReviewReport = OwnReport & {
@@ -109,6 +129,7 @@ export type ReviewReport = OwnReport & {
   allowed_next: string[];
   source_type: string;
   reporter_ref: string;
+  confirmations_count: number;
   assistant: AssistantSummary | null;
 };
 

@@ -56,6 +56,16 @@ def test_seed_demo_shows_each_assistant_case(settings):
     assert flagged == {"SF-TESTDEMB", "SF-TESTDEMD"}
 
 
+def test_seed_demo_includes_clusters_and_confirmations(settings):
+    client = TestClient(create_app(replace(settings, seed_demo_data=True)))
+    clusters = client.get("/public/clusters").json()
+    assert len(clusters) >= 3  # Copou school cluster (3 reports), TESTDEM2+TESTDEMA, TESTDEM7 (3 confirmations)
+    school = next(c for c in clusters if "SF-TESTDEMC" in c["report_ids"])
+    assert school["reports_count"] == 3
+    assert school["confirmations_count"] == 6
+    assert school["is_simulated"] is True
+
+
 def test_seed_skips_database_that_already_has_reports(settings, client, reporter_token):
     assert client.post("/reports", json=valid_report(), headers=auth_header(reporter_token)).status_code == 201
     create_app(replace(settings, seed_demo_data=True))  # restart with seeding on

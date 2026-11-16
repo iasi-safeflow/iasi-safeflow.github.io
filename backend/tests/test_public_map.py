@@ -8,7 +8,9 @@ def test_public_map_is_privacy_safe(client, submitted_report):
     assert set(item) == {
         "public_id", "category", "status", "lat", "lon", "observed_date", "updated_date",
         "source_type", "is_simulated", "verification", "area_street",
+        "confirmations_count", "confirmed_by_me",
     }
+    assert item["confirmations_count"] == 0 and item["confirmed_by_me"] is False
     assert item["lat"] == 47.162 and item["lon"] == 27.589  # rounded to ~100 m
     assert len(item["observed_date"]) == 10  # date only, no exact time
     assert submitted_report["description"] not in str(item)

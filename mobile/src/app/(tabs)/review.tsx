@@ -7,7 +7,7 @@ import { DuplicatePill, FlagPill, ImportancePill } from '@/components/assistant'
 import { Button, Card, Chip, ErrorText, Heading, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { CATEGORY_LABELS, formatDateTime, STATUS_LABELS, t } from '@/lib/i18n';
+import { CATEGORY_LABELS, confirmLabel, formatDateTime, STATUS_LABELS, t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 
 export default function ReviewQueueScreen() {
@@ -17,7 +17,7 @@ export default function ReviewQueueScreen() {
   const [items, setItems] = useState<ReviewReport[]>([]);
   const [status, setStatus] = useState<string | null>('submitted');
   const [heldOnly, setHeldOnly] = useState(false);
-  const [sort, setSort] = useState<'newest' | 'oldest' | 'importance'>('newest');
+  const [sort, setSort] = useState<'newest' | 'oldest' | 'importance' | 'confirmations'>('newest');
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -72,6 +72,7 @@ export default function ReviewQueueScreen() {
         <Chip label="Cele mai noi" selected={sort === 'newest'} onPress={() => setSort('newest')} />
         <Chip label="Cele mai vechi" selected={sort === 'oldest'} onPress={() => setSort('oldest')} />
         <Chip label={t.sortImportance} selected={sort === 'importance'} onPress={() => setSort('importance')} />
+        <Chip label={t.sortConfirmations} selected={sort === 'confirmations'} onPress={() => setSort('confirmations')} />
       </View>
       <ErrorText>{error}</ErrorText>
       {items.length === 0 && !error && <Text style={styles.muted}>{t.queueEmpty}</Text>}
@@ -93,6 +94,7 @@ export default function ReviewQueueScreen() {
             </Text>
             <Text style={styles.muted}>
               {t.created}: {formatDateTime(r.created_at)} · {r.reporter_ref}
+              {r.confirmations_count > 0 ? ` · ${confirmLabel(r.confirmations_count)}` : ''}
             </Text>
             {r.assistant && (
               <View style={styles.row}>

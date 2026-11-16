@@ -6,6 +6,8 @@ import { useA11y } from '@/lib/a11ySettings';
 import { useTheme } from '@/lib/themeMode';
 import {
   APPROX_RADIUS_M,
+  CLUSTER_BADGE_SIZE,
+  clusterMarkerHtml,
   COOP_HINT_HTML,
   COOP_IDLE_MS,
   COOP_PULSE_MS,
@@ -32,10 +34,23 @@ export type MapMarker = {
   label?: string; // accessible name of a focusable (letter) marker, e.g. "Iluminat slab, În analiză"
 };
 
+export type MapCluster = {
+  id: string;
+  lat: number;
+  lon: number;
+  radius_m: number;
+  count: number;
+  color: string;
+  label?: string;
+};
+
 export type MapProps = {
   markers?: MapMarker[];
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
+  clusters?: MapCluster[];
+  selectedClusterId?: string | null;
+  onSelectCluster?: (id: string | null) => void;
   pick?: { lat: number; lon: number } | null;
   pickable?: boolean;
   onPick?: (lat: number, lon: number) => void;
@@ -70,10 +85,17 @@ var pickMarker = null, pickable = false, ring = null; // ring is set by sfSetThe
 // The pin SVG is passed as text with placeholders (release builds can't turn a JS function back into source).
 var PIN = ${JSON.stringify(pinSvg('__FILL__', '__RING__'))};
 var LETTER = ${JSON.stringify(letterMarkerHtml('__FILL__', '__OUTLINE__', '__INK__', '__LETTER__'))};
-var outline = null, highContrast = false;
+var CLUSTER = ${JSON.stringify(clusterMarkerHtml('__FILL__', '__RING__', '__INK__', '__COUNT__', false))};
+var CLUSTER_SEL = ${JSON.stringify(clusterMarkerHtml('__FILL__', '__RING__', '__INK__', '__COUNT__', true))};
+var outline = null, highContrast = false, onPrimary = '#FFFFFF';
 function letterIcon(m){
   var html = LETTER.split('__FILL__').join(m.color).split('__OUTLINE__').join(outline).split('__INK__').join(ring).split('__LETTER__').join(m.letter);
   return L.divIcon({ html: html, className: '', iconSize: [${LETTER_MARKER_SIZE}, ${LETTER_MARKER_SIZE}], iconAnchor: [${LETTER_MARKER_SIZE / 2}, ${LETTER_MARKER_SIZE / 2}] });
+}
+function clusterIcon(c, selected){
+  var tpl = selected ? CLUSTER_SEL : CLUSTER;
+  var html = tpl.split('__FILL__').join(c.color).split('__RING__').join(highContrast ? outline : ring).split('__INK__').join(onPrimary).split('__COUNT__').join(String(c.count));
+  return L.divIcon({ html: html, className: '', iconSize: [${CLUSTER_BADGE_SIZE}, ${CLUSTER_BADGE_SIZE}], iconAnchor: [${CLUSTER_BADGE_SIZE / 2}, ${CLUSTER_BADGE_SIZE / 2}] });
 }
 function pinIcon(fill){
   var html = PIN.split('__FILL__').join(fill).split('__RING__').join(ring);
@@ -86,10 +108,11 @@ window.sfSetTheme = function(dark, vars){
   ring = vars['--sf-card'];
   outline = vars['--sf-text'];
   highContrast = vars['--sf-hc'] === '1';
+  if (vars['--sf-on-primary']) onPrimary = vars['--sf-on-primary'];
 };
 window.sfSetView = function(lat, lon, zoom){ map.setView([lat, lon], zoom); };
-var lastSelected = null;
-window.sfSetMarkers = function(list, selectedId){
+var lastSelected = null, lastCluster = null;
+window.sfSetMarkers = function(list, selectedId, clusters, selectedClusterId){
   layer.clearLayers();
   var selected = null;
   list.forEach(function(m){
@@ -108,6 +131,26 @@ window.sfSetMarkers = function(list, selectedId){
     }
   }
   lastSelected = selectedId;
+  var selCluster = null;
+  (clusters || []).forEach(function(c){
+    var isSel = c.id === selectedClusterId;
+    if (isSel) selCluster = c;
+    L.circle([c.lat, c.lon], {
+      radius: c.radius_m,
+      color: c.color,
+      weight: isSel ? 3 : 2,
+      fillColor: c.color,
+      fillOpacity: isSel ? 0.28 : 0.16,
+      interactive: false
+    }).addTo(layer);
+    L.marker([c.lat, c.lon], { icon: clusterIcon(c, isSel), title: c.label || String(c.count) })
+      .on('click', function(e){ L.DomEvent.stopPropagation(e); send({ type: 'selectCluster', id: c.id }); }).addTo(layer);
+  });
+  if (selCluster && selectedClusterId !== lastCluster) {
+    var cp = map.latLngToContainerPoint([selCluster.lat, selCluster.lon]);
+    map.panBy(cp.subtract(L.point(map.getSize().x / 2, map.getSize().y * ${SELECTED_Y})));
+  }
+  lastCluster = selectedClusterId;
 };
 window.sfSetPick = function(p, isPickable, color){
   pickable = isPickable;
@@ -116,7 +159,7 @@ window.sfSetPick = function(p, isPickable, color){
 };
 map.on('click', function(e){
   if (pickable) send({ type: 'pick', lat: e.latlng.lat, lon: e.latlng.lng });
-  else send({ type: 'select', id: null });
+  else { send({ type: 'select', id: null }); send({ type: 'selectCluster', id: null }); }
 });
 // Two-finger mode: one finger is left to the page; two fingers move and zoom the map (Leaflet's pinch handler
 // also pans) and ask the app to lock the page's scrolling until every finger has lifted.
@@ -175,6 +218,9 @@ export function LeafletMap({
   markers = [],
   selectedId = null,
   onSelect,
+  clusters = [],
+  selectedClusterId = null,
+  onSelectCluster,
   pick = null,
   pickable = false,
   onPick,
@@ -220,13 +266,14 @@ export function LeafletMap({
 
   const push = useCallback(() => {
     if (!ready.current) return;
+    const vars = { ...mapVars(colors), '--sf-on-primary': colors.onPrimary };
     ref.current?.injectJavaScript(
-      `window.sfSetTheme(${dark}, ${JSON.stringify(mapVars(colors))});` +
+      `window.sfSetTheme(${dark}, ${JSON.stringify(vars)});` +
         `window.sfSetCoop(${coop}, ${reduceMotion});` +
-        `window.sfSetMarkers(${JSON.stringify(markers)}, ${JSON.stringify(selectedId)});` +
+        `window.sfSetMarkers(${JSON.stringify(markers)}, ${JSON.stringify(selectedId)}, ${JSON.stringify(clusters)}, ${JSON.stringify(selectedClusterId)});` +
         `window.sfSetPick(${JSON.stringify(pick)}, ${pickable}, ${JSON.stringify(colors.primary)}); true;`,
     );
-  }, [markers, selectedId, pick, pickable, colors, dark, coop, reduceMotion]);
+  }, [markers, selectedId, clusters, selectedClusterId, pick, pickable, colors, dark, coop, reduceMotion]);
 
   useEffect(push, [push]);
 
@@ -252,6 +299,8 @@ export function LeafletMap({
       onPick(msg.lat, msg.lon);
     } else if (msg.type === 'select' && onSelect) {
       onSelect(typeof msg.id === 'string' ? msg.id : null);
+    } else if (msg.type === 'selectCluster' && onSelectCluster) {
+      onSelectCluster(typeof msg.id === 'string' ? msg.id : null);
     } else if (msg.type === 'lock' || msg.type === 'unlock') {
       setLock(msg.type === 'lock');
     }

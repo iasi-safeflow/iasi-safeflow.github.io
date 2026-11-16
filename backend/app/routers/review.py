@@ -14,6 +14,7 @@ from ..deps import get_db, get_settings, require_reviewer
 from ..domain import PUBLISHING_STATUSES, TRANSITIONS, verification
 from ..errors import api_error
 from ..schemas import DuplicateDecision, StatusChange
+from .public import confirmation_counts
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -39,7 +40,9 @@ def assistant_summary(run: sqlite3.Row | None) -> dict | None:
     }
 
 
-def review_report_out(row: sqlite3.Row, secret: str, run: sqlite3.Row | None = None) -> dict:
+def review_report_out(
+    row: sqlite3.Row, secret: str, run: sqlite3.Row | None = None, confirmations_count: int = 0
+) -> dict:
     return {
         "public_id": row["public_id"],
         "category": row["category"],
@@ -59,6 +62,7 @@ def review_report_out(row: sqlite3.Row, secret: str, run: sqlite3.Row | None = N
         "source_type": row["source_type"],
         "is_simulated": bool(row["is_simulated"]),
         "reporter_ref": reporter_ref(secret, row["reporter_id"]),
+        "confirmations_count": confirmations_count,
         "assistant": assistant_summary(run),
     }
 
@@ -95,7 +99,7 @@ def queue(
     status: str | None = Query(default=None),
     category: str | None = Query(default=None),
     visibility: str | None = Query(default=None, pattern="^(public|held)$"),
-    sort: str = Query(default="newest", pattern="^(newest|oldest|importance)$"),
+    sort: str = Query(default="newest", pattern="^(newest|oldest|importance|confirmations)$"),
     _: sqlite3.Row = Depends(require_reviewer),
     settings: Settings = Depends(get_settings),
     db: sqlite3.Connection = Depends(get_db),
@@ -112,10 +116,14 @@ def queue(
         params.append(visibility)
     sql += " ORDER BY created_at " + ("ASC" if sort == "oldest" else "DESC") + ", id"
     rows = db.execute(sql, params).fetchall()
-    runs = latest_runs(db, [r["id"] for r in rows])
-    items = [review_report_out(r, settings.secret_key, runs.get(r["id"])) for r in rows]
+    ids = [r["id"] for r in rows]
+    runs = latest_runs(db, ids)
+    counts = confirmation_counts(db, ids)
+    items = [review_report_out(r, settings.secret_key, runs.get(r["id"]), counts.get(r["id"], 0)) for r in rows]
     if sort == "importance":  # stable sort: newest first within the same score; unchecked reports last
         items.sort(key=lambda i: -(i["assistant"]["importance_score"] if i["assistant"] else -1))
+    elif sort == "confirmations":
+        items.sort(key=lambda i: -i["confirmations_count"])
     return items
 
 
@@ -127,7 +135,9 @@ def report_detail(
     db: sqlite3.Connection = Depends(get_db),
 ):
     row = _get_report(db, public_id)
-    return review_report_out(row, settings.secret_key, latest_runs(db, [row["id"]]).get(row["id"]))
+    runs = latest_runs(db, [row["id"]])
+    counts = confirmation_counts(db, [row["id"]])
+    return review_report_out(row, settings.secret_key, runs.get(row["id"]), counts.get(row["id"], 0))
 
 
 def _refresh_checks(db: sqlite3.Connection, report_ids: list[int]) -> None:

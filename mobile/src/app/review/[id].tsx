@@ -13,6 +13,7 @@ import { api, AssistantAnalysis, AuditEntry, errorText, ReviewReport } from '@/l
 import { useAuth } from '@/lib/auth';
 import {
   CATEGORY_LABELS,
+  confirmLabel,
   DECISION_LABELS,
   formatDateTime,
   joinSentences,
@@ -195,6 +196,9 @@ export default function ReviewDetailScreen() {
         </Text>
         <Text style={styles.muted}>
           {t.reporterRef}: {report.reporter_ref}
+        </Text>
+        <Text style={styles.muted}>
+          {t.citizenConfirmations}: {confirmLabel(report.confirmations_count)}
         </Text>
         <ReadAloudButton
           text={joinSentences([

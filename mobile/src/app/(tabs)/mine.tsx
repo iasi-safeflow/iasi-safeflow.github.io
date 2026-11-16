@@ -7,7 +7,7 @@ import { ReadAloudButton } from '@/components/ReadAloudButton';
 import { Button, Card, ErrorText, Field, Heading, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, ApiError, errorText, OwnReport, PublicReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { CATEGORY_LABELS, formatDate, formatDateTime, REJECTION_REASON_TEXT, sourceLabels, STATUS_LABELS, t } from '@/lib/i18n';
+import { CATEGORY_LABELS, confirmLabel, formatDate, formatDateTime, REJECTION_REASON_TEXT, sourceLabels, STATUS_LABELS, t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 
 export default function MyReportsScreen() {
@@ -102,6 +102,7 @@ export default function MyReportsScreen() {
               <Text style={styles.muted}>{r.description}</Text>
               <Text style={styles.muted}>
                 {t.observed}: {formatDateTime(r.observed_at)}
+                {r.confirmations_count > 0 ? ` · ${confirmLabel(r.confirmations_count)}` : ''}
               </Text>
               {r.status === 'rejected' && r.rejection_reason ? (
                 <Text style={[styles.body, { marginTop: 6 }]}>

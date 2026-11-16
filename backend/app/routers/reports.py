@@ -16,6 +16,7 @@ from ..domain import verification
 from ..errors import api_error, validation_error_body
 from ..safety import emergency_reasons, emergency_response_body
 from ..schemas import ReportCreate
+from .public import confirmation_counts
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -27,7 +28,7 @@ def new_public_id() -> str:
     return "SF-" + "".join(secrets.choice(_ID_ALPHABET) for _ in range(8))
 
 
-def own_report_out(row: sqlite3.Row) -> dict:
+def own_report_out(row: sqlite3.Row, confirmations_count: int = 0) -> dict:
     return {
         "public_id": row["public_id"],
         "category": row["category"],
@@ -45,6 +46,7 @@ def own_report_out(row: sqlite3.Row) -> dict:
         # Held = not on the public map until a reviewer looks at it. The reviewer's private note is never included.
         "public_visibility": row["public_visibility"],
         "rejection_reason": row["rejection_reason"],
+        "confirmations_count": confirmations_count,
     }
 
 
@@ -124,4 +126,5 @@ def my_reports(user: sqlite3.Row = Depends(current_user), db: sqlite3.Connection
     rows = db.execute(
         "SELECT * FROM reports WHERE reporter_id = ? ORDER BY created_at DESC, id DESC", (user["id"],)
     ).fetchall()
-    return [own_report_out(r) for r in rows]
+    counts = confirmation_counts(db, [r["id"] for r in rows])
+    return [own_report_out(r, counts.get(r["id"], 0)) for r in rows]

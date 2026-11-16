@@ -198,6 +198,11 @@ lists every check and what the reviewer did next. Formulas, weights and limitati
   - **Vibrații și sunete** (`expo-haptics` for report sent, errors, and 112 stop).
 - **Street search on maps:** explicit **`Caută`** bar above the Home and Report maps (no search-as-you-type), calling `/geo/search` on the backend (OpenStreetMap Nominatim, Iași-bounded, rate-limited and cached). See [docs/ACCESSIBILITY_TEST.md](docs/ACCESSIBILITY_TEST.md) for the Android TalkBack test script.
 
+## 1-tap confirmations and hotspot clusters
+
+- **1-tap corroboration ("Și eu am observat (+1)"):** on the Home map or list, any visitor can confirm an open public report with one tap (re-tap to undo; authors cannot confirm their own report). Stored per account or device ID in `report_confirmations`, rate-limited, and factored into assistant corroboration.
+- **Hotspot clusters (`Zone frecvente`):** `GET /public/clusters` groups non-rejected public reports within 200 m and the last 30 days (`>= 2` reports, or 1 report with `>= 2` confirmations) using rounded coordinates only. Clusters are always labelled as potential patterns from user observations, never official accident black spots.
+
 ## Data sources and attribution
 
 - Map tiles © OpenStreetMap contributors (ODbL), used under the
