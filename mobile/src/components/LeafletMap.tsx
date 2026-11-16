@@ -39,7 +39,7 @@ export type MapProps = {
   pick?: { lat: number; lon: number } | null;
   pickable?: boolean;
   onPick?: (lat: number, lon: number) => void;
-  center?: { lat: number; lon: number; zoom?: number };
+  center?: { lat: number; lon: number; zoom?: number; seq?: number };
   style?: StyleProp<ViewStyle>;
   // For maps inside a scrolling screen: one finger scrolls the page, two fingers move and zoom the map.
   // Always off in the screen-reader mode, where it would clash with TalkBack/VoiceOver gestures.
@@ -234,7 +234,7 @@ export function LeafletMap({
     if (ready.current && center) {
       ref.current?.injectJavaScript(`window.sfSetView(${center.lat}, ${center.lon}, ${center.zoom ?? 16}); true;`);
     }
-  }, [center?.lat, center?.lon, center?.zoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [center?.lat, center?.lon, center?.zoom, center?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onMessage = (e: WebViewMessageEvent) => {
     let msg: { type: string; lat?: number; lon?: number; id?: string | null };

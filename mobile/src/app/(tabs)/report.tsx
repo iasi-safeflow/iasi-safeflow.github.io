@@ -8,6 +8,7 @@ import { EmergencyStop } from '@/components/EmergencyStop';
 import { LeafletMap } from '@/components/LeafletMap';
 import { ObservedAtField } from '@/components/ObservedAtField';
 import { ReportSteps, StepPick } from '@/components/ReportSteps';
+import { StreetSearch } from '@/components/StreetSearch';
 import { Button, Card, Chip, ErrorText, Field, Heading, Label, SourceBadge, useStyles } from '@/components/ui';
 import { announce, focusOn } from '@/lib/a11y';
 import { useA11y } from '@/lib/a11ySettings';
@@ -32,7 +33,7 @@ export default function ReportScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [gpsBusy, setGpsBusy] = useState(false);
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number; zoom: number } | undefined>();
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number; zoom: number; seq: number } | undefined>();
   const [result, setResult] = useState<OwnReport | null>(null);
   const [mapLocked, setMapLocked] = useState(false); // two fingers on the map: the form stops scrolling
   const sentHeading = useRef(null);
@@ -80,7 +81,7 @@ export default function ReportScreen() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const p = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       setPick({ ...p, source: 'gps', accuracy: pos.coords.accuracy ?? undefined });
-      setMapCenter({ ...p, zoom: 17 });
+      setMapCenter((prev) => ({ ...p, zoom: 17, seq: (prev?.seq ?? 0) + 1 }));
       announce(
         pos.coords.accuracy
           ? t.gpsSetAccuracy.replace('{m}', String(Math.round(pos.coords.accuracy)))
@@ -234,6 +235,17 @@ export default function ReportScreen() {
 
           <Label>{t.location}</Label>
           <Text style={[styles.muted, { marginBottom: 6 }]}>{t.locationHint}</Text>
+          <StreetSearch
+            token={token}
+            selected={pick}
+            unavailableText={t.streetUnavailable}
+            onSelect={(r) => {
+              setPick({ lat: r.lat, lon: r.lon, source: 'pin', label: r.label });
+              setMapCenter((prev) => ({ lat: r.lat, lon: r.lon, zoom: 17, seq: (prev?.seq ?? 0) + 1 }));
+              announce(t.locationChosen.replace('{label}', r.label));
+            }}
+            style={{ marginBottom: 8 }}
+          />
           <View role="group" accessibilityLabel={t.pickMapA11y} accessibilityHint={t.locationHint}>
             <LeafletMap
               style={{ height: 260, borderRadius: 20 }}
@@ -255,6 +267,7 @@ export default function ReportScreen() {
           />
           {pick && (
             <Text style={styles.muted}>
+              {pick.label ? `${pick.label} · ` : ''}
               {pick.source === 'gps' ? t.gps : t.pin}: {pick.lat.toFixed(5)}, {pick.lon.toFixed(5)}
               {pick.accuracy ? ` (±${Math.round(pick.accuracy)} m)` : ''}
             </Text>

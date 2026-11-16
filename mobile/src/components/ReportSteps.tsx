@@ -9,6 +9,7 @@ import { CATEGORY_LABELS, EMERGENCY_CATEGORY, EMERGENCY_CATEGORY_LABEL, formatDa
 import { Text } from './AppText';
 import { ObservedAtField } from './ObservedAtField';
 import { ReadAloudButton } from './ReadAloudButton';
+import { StreetSearch } from './StreetSearch';
 import { Button, Card, Chip, ErrorText, Field, Heading, useStyles } from './ui';
 
 // The report form for the screen-reader mode: one question per screen, "Pasul X din 5" read on every step, and the
@@ -195,18 +196,13 @@ function ReviewStep(p: ReportStepsProps & { onBack: () => void }) {
   );
 }
 
-type SearchResult = { label: string; lat: number; lon: number };
-
 // GPS first, read back with the nearest street; "Folosește altă locație" searches a typed street name, only when
 // the user presses "Caută" (the street-name service must not be queried while typing).
 function LocationStep({ token, pick, setPick }: { token: string | null; pick: StepPick | null; setPick: (p: StepPick | null) => void }) {
   const styles = useStyles();
   const [status, setStatus] = useState('');
   const [locating, setLocating] = useState(false);
-  const [searching, setSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[] | null>(null);
   const [error, setError] = useState('');
 
   const say = (text: string) => {
@@ -258,24 +254,6 @@ function LocationStep({ token, pick, setPick }: { token: string | null; pick: St
     if (!pick) void locate();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const search = async () => {
-    setSearching(true);
-    setError('');
-    setResults(null);
-    try {
-      const r = await api<{ available: boolean; results: SearchResult[] }>(`/geo/search?q=${encodeURIComponent(query.trim())}`, { token });
-      if (!r.available) setError(t.streetUnavailable);
-      else {
-        setResults(r.results);
-        announce(r.results.length ? `${r.results.length} rezultate.` : t.streetNoResults);
-      }
-    } catch {
-      setError(t.streetUnavailable);
-    } finally {
-      setSearching(false);
-    }
-  };
-
   return (
     <View>
       {status ? (
@@ -288,24 +266,16 @@ function LocationStep({ token, pick, setPick }: { token: string | null; pick: St
       <Button title={t.otherLocation} icon="search" variant="secondary" onPress={() => setShowSearch(true)} />
       {showSearch && (
         <Card>
-          <Field label={t.streetSearchLabel} value={query} onChangeText={setQuery} hint={t.streetSearchHint} maxLength={100} />
-          <Button title={t.streetSearch} icon="search" onPress={search} loading={searching} disabled={query.trim().length < 3} />
-          {results && results.length === 0 && <Text style={styles.muted}>{t.streetNoResults}</Text>}
-          {results && results.length > 0 && (
-            <View accessibilityRole="radiogroup" accessibilityLabel={t.streetSearchLabel}>
-              {results.map((r) => (
-                <Chip
-                  key={`${r.lat},${r.lon}`}
-                  label={r.label}
-                  selected={!!pick && pick.lat === r.lat && pick.lon === r.lon}
-                  onPress={() => {
-                    setPick({ lat: r.lat, lon: r.lon, source: 'pin', label: r.label });
-                    say(t.locationChosen.replace('{label}', r.label));
-                  }}
-                />
-              ))}
-            </View>
-          )}
+          <StreetSearch
+            token={token}
+            selected={pick}
+            compact={false}
+            unavailableText={t.streetUnavailable}
+            onSelect={(r) => {
+              setPick({ lat: r.lat, lon: r.lon, source: 'pin', label: r.label });
+              say(t.locationChosen.replace('{label}', r.label));
+            }}
+          />
         </Card>
       )}
       <Text style={[styles.muted, { marginTop: 8 }]}>{t.streetPrivacy}</Text>

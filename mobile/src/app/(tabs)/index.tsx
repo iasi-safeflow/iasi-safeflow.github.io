@@ -6,9 +6,11 @@ import { Text } from '@/components/AppText';
 import { EmergencyBanner } from '@/components/EmergencyBanner';
 import { LeafletMap, MapMarker } from '@/components/LeafletMap';
 import { ReportList } from '@/components/ReportList';
+import { StreetSearch } from '@/components/StreetSearch';
 import { Button, Chip, ErrorText, Heading, Icon, StatusBadge, useStyles, useTabBarSpace } from '@/components/ui';
 import { announce } from '@/lib/a11y';
 import { api, errorText, PublicReport } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useA11y } from '@/lib/a11ySettings';
 import { CATEGORY_LABELS, nearbyLabel, sourceLabels, STATUS_LABELS, STATUS_LETTERS, t, timeAgo } from '@/lib/i18n';
 import { usePosition } from '@/lib/position';
@@ -17,12 +19,14 @@ import { fonts, radius, StatusKey, TOUCH } from '@/theme';
 
 // Public map: no login, privacy-safe fields only (rounded location, category, status, date).
 export default function PublicMapScreen() {
+  const { token } = useAuth();
   const { colors } = useTheme();
   const styles = useStyles();
   const tabSpace = useTabBarSpace();
   const [reports, setReports] = useState<PublicReport[]>([]);
   const [category, setCategory] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number; zoom: number; seq: number } | undefined>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const { srMode } = useA11y();
@@ -136,15 +140,31 @@ export default function PublicMapScreen() {
           {loading ? <Text style={styles.muted}>{t.mapLoading}</Text> : <ReportList reports={reports} origin={position.point} />}
         </ScrollView>
       ) : (
-        <View
-          style={[s.mapCard, { borderColor: colors.border, backgroundColor: colors.map.land }]}
-          // Phone app: the map is one item with a summary (its markers can't be explored by touch). Web: a labelled
-          // region, so Leaflet's own keyboard controls stay reachable inside it.
-          accessible={Platform.OS !== 'web'}
-          role={Platform.OS === 'web' ? 'region' : undefined}
-          accessibilityLabel={t.mapA11y.replace('{n}', String(reports.length))}
-        >
-          <LeafletMap markers={markers} selectedId={selectedId} onSelect={setSelectedId} style={{ flex: 1 }} />
+        <>
+          <StreetSearch
+            token={token}
+            onSelect={(r) => {
+              setSelectedId(null);
+              setMapCenter((prev) => ({ lat: r.lat, lon: r.lon, zoom: 16, seq: (prev?.seq ?? 0) + 1 }));
+              announce(t.streetCentered.replace('{label}', r.label));
+            }}
+            style={{ marginHorizontal: 16, marginBottom: 8 }}
+          />
+          <View
+            style={[s.mapCard, { borderColor: colors.border, backgroundColor: colors.map.land }]}
+            // Phone app: the map is one item with a summary (its markers can't be explored by touch). Web: a labelled
+            // region, so Leaflet's own keyboard controls stay reachable inside it.
+            accessible={Platform.OS !== 'web'}
+            role={Platform.OS === 'web' ? 'region' : undefined}
+            accessibilityLabel={t.mapA11y.replace('{n}', String(reports.length))}
+          >
+            <LeafletMap
+              markers={markers}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              center={mapCenter}
+              style={{ flex: 1 }}
+            />
           <View pointerEvents="none" style={[s.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {loading ? (
               <>
@@ -179,7 +199,8 @@ export default function PublicMapScreen() {
               </Text>
             </View>
           )}
-        </View>
+          </View>
+        </>
       )}
 
       <View style={{ paddingHorizontal: 16 }}>
@@ -239,7 +260,7 @@ const s = StyleSheet.create({
   ctaTitle: { fontFamily: fonts.black, fontSize: 18 },
   ctaSub: { fontFamily: fonts.semibold, fontSize: 14 },
   toggle: { marginHorizontal: 16, marginTop: -6, marginBottom: 4 },
-  mapCard: { flex: 1, minHeight: 220, marginHorizontal: 16, borderRadius: 26, borderWidth: 1, overflow: 'hidden' },
+  mapCard: { flex: 1, minHeight: 180, marginHorizontal: 16, borderRadius: 26, borderWidth: 1, overflow: 'hidden' },
   chip: {
     position: 'absolute',
     top: 12,

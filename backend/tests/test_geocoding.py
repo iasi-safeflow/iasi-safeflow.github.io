@@ -152,9 +152,12 @@ def _token(client):
     return r.json()["token"]
 
 
-def test_endpoints_require_login(geo_client):
+def test_reverse_requires_login_and_search_is_public(geo_client):
     assert geo_client.get(f"/geo/reverse?lat={LAT}&lon={LON}").status_code == 401
-    assert geo_client.get("/geo/search?q=Copou").status_code == 401
+    r = geo_client.get("/geo/search?q=Copou")
+    assert r.status_code == 200
+    assert r.json()["available"] is True
+    assert r.json()["results"] == [{"label": "Strada Lăpușneanu 12, Centru", "lat": 47.165, "lon": 27.584}]
 
 
 def test_reverse_endpoint(geo_client, fake):
@@ -167,12 +170,17 @@ def test_reverse_endpoint(geo_client, fake):
     assert r.status_code == 200 and r.json()["available"] is False and r.json()["street"] is None
 
 
-def test_search_endpoint_validation_and_user_limit(geo_client):
+def test_search_endpoint_validation_and_limits(geo_client):
     h = auth_header(_token(geo_client))
     assert geo_client.get("/geo/search?q=ab", headers=h).status_code == 422  # explicit searches of 3+ characters
     assert geo_client.get("/geo/search?q=Copou", headers=h).json()["available"] is True
     codes = [geo_client.get("/geo/search?q=Copou", headers=h).status_code for _ in range(40)]
     assert 429 in codes  # per-user limit on top of the service-wide one
+
+    # Anonymous public-map searches are also rate-limited per IP without blocking other visitors.
+    anon_codes = [geo_client.get("/geo/search?q=Copou", headers={"X-Forwarded-For": "198.51.100.1"}).status_code for _ in range(40)]
+    assert 429 in anon_codes
+    assert geo_client.get("/geo/search?q=Copou", headers={"X-Forwarded-For": "198.51.100.2"}).status_code == 200
 
 
 def test_report_submission_never_waits_for_street_names(settings, fake, clock):

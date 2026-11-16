@@ -266,7 +266,7 @@ export function LeafletMap({
 
   useEffect(() => {
     if (map.current && center) map.current.setView([center.lat, center.lon], center.zoom ?? 16);
-  }, [center?.lat, center?.lon, center?.zoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [center?.lat, center?.lon, center?.zoom, center?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On web a View renders a <div>; its ref is that DOM node.
   return (
