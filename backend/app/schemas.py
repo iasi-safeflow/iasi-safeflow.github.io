@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 from .comments import COMMENT_TAGS
 from .domain import CATEGORIES, IASI_BOUNDS, REJECTION_REASONS, STATUSES
+from .photos import MAX_PHOTOS_PER_REPORT
 
 
 class Credentials(BaseModel):
@@ -32,6 +33,13 @@ class AuthOut(BaseModel):
     user: UserOut
 
 
+class PhotoUpload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: str = Field(min_length=16, max_length=1_500_000)
+    mime_type: Literal["image/jpeg", "image/jpg", "image/png", "image/webp"] | None = None
+
+
 class ReportCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -44,6 +52,7 @@ class ReportCreate(BaseModel):
     observed_at: datetime
     # Required answer to "Is anyone injured or in immediate danger right now?" — True never reaches this model.
     immediate_danger: Literal[False]
+    photos: list[PhotoUpload] = Field(default_factory=list, max_length=MAX_PHOTOS_PER_REPORT)
 
     @field_validator("category")
     @classmethod

@@ -45,7 +45,7 @@ def test_each_new_report_gets_a_stored_versioned_check(client, reviewer_token, s
     a = _analysis(client, reviewer_token, submitted_report["public_id"])
     assert a["checks"] == 1
     latest = a["latest"]
-    assert latest["assistant_version"] == "asistent-reguli-v1" and latest["triggered_by"] == "created"
+    assert latest["assistant_version"] == "asistent-reguli-v2" and latest["triggered_by"] == "created"
     assert latest["created_at"] and latest["flags"] == [] and latest["duplicates"] == []
     assert latest["importance"]["level"] in {"high", "medium", "low"}
 
@@ -209,4 +209,4 @@ def test_assistant_failure_holds_the_report(client, reporter_token, reviewer_tok
     assert client.get(f"/public/reports/{pid}").status_code == 404
     mine = client.get("/reports/mine", headers=auth_header(reporter_token)).json()[0]
     assert mine["public_visibility"] == "held"
-    assert _analysis(client, reviewer_token, pid) == {"latest": None, "checks": 0, "current_version": "asistent-reguli-v1"}
+    assert _analysis(client, reviewer_token, pid) == {"latest": None, "checks": 0, "current_version": "asistent-reguli-v2"}

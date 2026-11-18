@@ -7,7 +7,7 @@ import { DuplicatePill, FlagPill, ImportancePill } from '@/components/assistant'
 import { Button, Card, Chip, ErrorText, Heading, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { boostLabel, CATEGORY_LABELS, confirmLabel, formatDateTime, STATUS_LABELS, t } from '@/lib/i18n';
+import { boostLabel, CATEGORY_LABELS, confirmLabel, formatDateTime, photosCountLabel, STATUS_LABELS, t } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 
 export default function ReviewQueueScreen() {
@@ -110,6 +110,7 @@ export default function ReviewQueueScreen() {
               {r.confirmations_count > 0 ? ` · ${confirmLabel(r.confirmations_count)}` : ''}
               {r.boosts_count > 0 ? ` · ${boostLabel(r.boosts_count)}` : ''}
               {r.pending_comments_count > 0 ? ` · ${r.pending_comments_count} comentarii noi` : ''}
+              {r.photos_count > 0 ? ` · ${photosCountLabel(r.photos_count)}` : ''}
             </Text>
             {r.assistant && (
               <View style={styles.row}>

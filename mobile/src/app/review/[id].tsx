@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Image, ScrollView, View } from 'react-native';
 
 import { Text } from '@/components/AppText';
 import { LeafletMap } from '@/components/LeafletMap';
@@ -10,7 +10,7 @@ import { ReadAloudButton } from '@/components/ReadAloudButton';
 import { RejectSheet } from '@/components/RejectSheet';
 import { Button, Card, ErrorText, Field, Heading, Icon, IconName, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { announce } from '@/lib/a11y';
-import { api, AssistantAnalysis, AuditEntry, DossierOut, errorText, ReviewComment, ReviewReport } from '@/lib/api';
+import { api, AssistantAnalysis, AuditEntry, DossierOut, errorText, ReviewComment, ReviewPhoto, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
   boostLabel,
@@ -21,12 +21,13 @@ import {
   DECISION_LABELS,
   formatDateTime,
   joinSentences,
+  photosCountLabel,
   REJECTION_REASON_LABELS,
   STATUS_LABELS,
   t,
 } from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
-import { StatusKey } from '@/theme';
+import { radius, StatusKey } from '@/theme';
 
 type Action = { status: string; title: string; icon: IconName; variant: 'primary' | 'secondary' };
 
@@ -66,19 +67,22 @@ export default function ReviewDetailScreen() {
   const [dossier, setDossier] = useState<DossierOut | null>(null);
   const [dossierError, setDossierError] = useState('');
   const [comments, setComments] = useState<ReviewComment[]>([]);
+  const [photos, setPhotos] = useState<ReviewPhoto[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [r, a, an, cm] = await Promise.all([
+      const [r, a, an, cm, ph] = await Promise.all([
         api<ReviewReport>(`/review/reports/${id}`, { token }),
         api<AuditEntry[]>(`/review/reports/${id}/audit`, { token }),
         api<AssistantAnalysis>(`/review/reports/${id}/assistant`, { token }),
         api<ReviewComment[]>(`/review/reports/${id}/comments`, { token }),
+        api<ReviewPhoto[]>(`/review/reports/${id}/photos`, { token }),
       ]);
       setReport(r);
       setAudit(a);
       setAnalysis(an);
       setComments(cm);
+      setPhotos(ph);
       setError('');
     } catch (e) {
       setError(errorText(e));
@@ -97,6 +101,20 @@ export default function ReviewDetailScreen() {
       setNotes('');
       await load();
       announce(t.statusChanged.replace('{s}', STATUS_LABELS[status] ?? status));
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removePhoto = async (photoId: number) => {
+    setBusy(`photo:${photoId}`);
+    setError('');
+    try {
+      await api(`/review/photos/${photoId}/remove`, { method: 'POST', token });
+      await load();
+      announce(t.decisionSaved);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -238,6 +256,7 @@ export default function ReviewDetailScreen() {
         <Text style={styles.muted}>
           {t.priorityBoosts}: {boostLabel(report.boosts_count)}
         </Text>
+        <Text style={styles.muted}>{photosCountLabel(report.photos_count)}</Text>
         <ReadAloudButton
           text={joinSentences([
             report.public_id,
@@ -295,6 +314,36 @@ export default function ReviewDetailScreen() {
         onConfirm={reject}
       />
       <DossierModal dossier={dossier} onClose={() => setDossier(null)} />
+
+      <Heading level={2}>{t.photosReviewTitle}</Heading>
+      {photos.length === 0 && <Text style={styles.muted}>{t.photosReviewEmpty}</Text>}
+      {photos.map((ph, idx) => (
+        <Card key={ph.id}>
+          <Image
+            source={{ uri: ph.data_url }}
+            resizeMode="contain"
+            accessibilityLabel={t.photoPreviewA11y.replace('{n}', String(idx + 1))}
+            style={{
+              width: '100%',
+              height: 220,
+              borderRadius: radius.input,
+              backgroundColor: colors.border,
+              marginBottom: 8,
+            }}
+          />
+          <Text style={styles.muted}>
+            {t.photosReviewPrivacy} ({Math.max(1, Math.round(ph.size_bytes / 1024))} KB)
+          </Text>
+          <Button
+            title={t.photoDeleteReview}
+            icon="trash-2"
+            variant="secondary"
+            onPress={() => removePhoto(ph.id)}
+            loading={busy === `photo:${ph.id}`}
+            disabled={!!busy}
+          />
+        </Card>
+      ))}
 
       <Heading level={2}>{t.commentsReviewTitle}</Heading>
       {comments.length === 0 && <Text style={styles.muted}>{t.commentsReviewEmpty}</Text>}

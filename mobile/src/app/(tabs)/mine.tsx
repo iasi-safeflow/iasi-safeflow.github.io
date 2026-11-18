@@ -7,7 +7,18 @@ import { ReadAloudButton } from '@/components/ReadAloudButton';
 import { Button, Card, ErrorText, Field, Heading, Icon, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { api, ApiError, errorText, OwnReport, PublicReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { boostLabel, CATEGORY_LABELS, confirmLabel, formatDate, formatDateTime, REJECTION_REASON_TEXT, sourceLabels, STATUS_LABELS, t } from '@/lib/i18n';
+import {
+  boostLabel,
+  CATEGORY_LABELS,
+  confirmLabel,
+  formatDate,
+  formatDateTime,
+  photosCountLabel,
+  REJECTION_REASON_TEXT,
+  sourceLabels,
+  STATUS_LABELS,
+  t,
+} from '@/lib/i18n';
 import { useTheme } from '@/lib/themeMode';
 
 export default function MyReportsScreen() {
@@ -104,6 +115,7 @@ export default function MyReportsScreen() {
                 {t.observed}: {formatDateTime(r.observed_at)}
                 {r.confirmations_count > 0 ? ` · ${confirmLabel(r.confirmations_count)}` : ''}
                 {r.boosts_count > 0 ? ` · ${boostLabel(r.boosts_count)}` : ''}
+                {(r.photos_count ?? 0) > 0 ? ` · ${photosCountLabel(r.photos_count ?? 0)}` : ''}
               </Text>
               {r.status === 'rejected' && r.rejection_reason ? (
                 <Text style={[styles.body, { marginTop: 6 }]}>

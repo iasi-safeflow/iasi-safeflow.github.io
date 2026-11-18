@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { CATEGORY_LABELS, EMERGENCY_CATEGORY, EMERGENCY_CATEGORY_LABEL, formatDateTime, joinSentences, t } from '@/lib/i18n';
 import { Text } from './AppText';
 import { ObservedAtField } from './ObservedAtField';
+import { DraftPhoto, PhotoPickerField } from './PhotoPickerField';
 import { ReadAloudButton } from './ReadAloudButton';
 import { StreetSearch } from './StreetSearch';
 import { Button, Card, Chip, ErrorText, Field, Heading, useStyles } from './ui';
@@ -34,6 +35,8 @@ export type ReportStepsProps = {
   setDescription: (v: string) => void;
   observedAt: Date;
   setObservedAt: (d: Date) => void;
+  photos: DraftPhoto[];
+  setPhotos: (next: DraftPhoto[]) => void;
   gate: Gate;
   submit: () => void;
   busy: boolean;
@@ -146,6 +149,7 @@ export function ReportSteps(p: ReportStepsProps) {
           </Text>
           <Text style={styles.label}>{t.observedAt}</Text>
           <ObservedAtField value={p.observedAt} onChange={p.setObservedAt} />
+          <PhotoPickerField photos={p.photos} onChange={p.setPhotos} />
           <ErrorText>{stepError}</ErrorText>
           <Button title={t.next} icon="arrow-right" onPress={nextFromDescription} />
           <Button title={t.back} variant="secondary" onPress={() => go(3)} />
@@ -170,6 +174,7 @@ function ReviewStep(p: ReportStepsProps & { onBack: () => void }) {
     `${t.summaryLocation}: ${p.pick ? pickText(p.pick) : ''}`,
     `${t.summaryDescription}: ${p.description.trim()}`,
     `${t.summaryObserved}: ${formatDateTime(p.observedAt.toISOString())}`,
+    ...(p.photos.length > 0 ? [`${t.summaryPhotos}: ${p.photos.length}`] : []),
   ];
   const spoken = joinSentences(lines);
   // The summary is read out once when the step opens, before the "Trimite" button.

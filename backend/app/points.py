@@ -13,6 +13,7 @@ from .errors import api_error
 
 PTS_REPORT_VALIDATED = 15
 PTS_DETAIL_BONUS = 5
+PTS_PHOTO_BONUS = 5
 PTS_CONFIRM_VALIDATED = 5
 PTS_COMMENT_APPROVED = 5
 PTS_IMPACT = 25
@@ -108,6 +109,17 @@ def award_for_status(db: sqlite3.Connection, report: sqlite3.Row, to_status: str
                 "report_detail_bonus",
                 PTS_DETAIL_BONUS,
                 f"Bonus descriere detaliată ({public_id})",
+                now_iso,
+            )
+        has_photo = db.execute("SELECT 1 FROM report_photos WHERE report_id = ? LIMIT 1", (report_id,)).fetchone() is not None
+        if has_photo:
+            _grant(
+                db,
+                reporter_id,
+                report_id,
+                "report_photo_bonus",
+                PTS_PHOTO_BONUS,
+                f"Bonus dovadă foto validată ({public_id})",
                 now_iso,
             )
         for uid in confirmers:

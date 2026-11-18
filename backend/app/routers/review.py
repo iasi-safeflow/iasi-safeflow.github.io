@@ -18,6 +18,7 @@ from ..domain import PUBLIC_HIDDEN_STATUSES, PUBLISHING_STATUSES, TRANSITIONS, v
 from ..dossier import DOSSIER_STATUSES, build_dossier
 from ..errors import api_error
 from ..geocoding import area_street
+from ..photos import photo_counts, review_photo_out
 from ..points import award_for_comment, award_for_status, boost_counts
 from ..schemas import CommentModeration, DuplicateDecision, StatusChange
 from .public import confirmation_counts
@@ -53,6 +54,7 @@ def review_report_out(
     confirmations_count: int = 0,
     boosts_count: int = 0,
     pending_comments_count: int = 0,
+    photos_count: int = 0,
 ) -> dict:
     return {
         "public_id": row["public_id"],
@@ -76,6 +78,7 @@ def review_report_out(
         "confirmations_count": confirmations_count,
         "boosts_count": boosts_count,
         "pending_comments_count": pending_comments_count,
+        "photos_count": photos_count,
         "assistant": assistant_summary(run),
     }
 
@@ -135,6 +138,7 @@ def queue(
     counts = confirmation_counts(db, ids)
     boosts = boost_counts(db, ids)
     pend_comments = comment_counts(db, ids, "pending")
+    photos = photo_counts(db, ids)
     items = [
         review_report_out(
             r,
@@ -143,6 +147,7 @@ def queue(
             counts.get(r["id"], 0),
             boosts.get(r["id"], 0),
             pend_comments.get(r["id"], 0),
+            photos.get(r["id"], 0),
         )
         for r in rows
     ]
@@ -169,6 +174,7 @@ def report_detail(
     counts = confirmation_counts(db, [row["id"]])
     boosts = boost_counts(db, [row["id"]])
     pend_comments = comment_counts(db, [row["id"]], "pending")
+    photos = photo_counts(db, [row["id"]])
     return review_report_out(
         row,
         settings.secret_key,
@@ -176,6 +182,7 @@ def report_detail(
         counts.get(row["id"], 0),
         boosts.get(row["id"], 0),
         pend_comments.get(row["id"], 0),
+        photos.get(row["id"], 0),
     )
 
 
@@ -476,6 +483,7 @@ def report_dossier(
         street=street,
         confirmations_count=conf_count,
         boosts_count=boosts,
+        photos_count=photo_counts(db, [row["id"]]).get(row["id"], 0),
         duplicate_ids=dup_ids,
         cluster=cluster,
         importance=importance,
@@ -484,6 +492,43 @@ def report_dossier(
         comments=approved_comments,
         generated_at=now,
     )
+
+
+@router.get("/reports/{public_id}/photos")
+def report_photos(
+    public_id: str,
+    _: sqlite3.Row = Depends(require_reviewer),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Reviewer-only EXIF-stripped photos attached to a report. Never exposed on public endpoints."""
+    row = _get_report(db, public_id)
+    rows = db.execute("SELECT * FROM report_photos WHERE report_id = ? ORDER BY id", (row["id"],)).fetchall()
+    return [review_photo_out(r) for r in rows]
+
+
+@router.post("/photos/{photo_id}/remove")
+def remove_photo(
+    photo_id: int,
+    reviewer: sqlite3.Row = Depends(require_reviewer),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Remove an uploaded photo (e.g. contains faces/plates) and record an audit entry."""
+    photo = db.execute(
+        "SELECT p.*, r.public_id FROM report_photos p JOIN reports r ON r.id = p.report_id WHERE p.id = ?",
+        (photo_id,),
+    ).fetchone()
+    if photo is None:
+        raise api_error(404, "not_found", "Fotografia nu a fost găsită.")
+    now_iso = iso(utcnow())
+    with db:
+        db.execute("DELETE FROM report_photos WHERE id = ?", (photo_id,))
+        db.execute(
+            """INSERT INTO review_actions (report_id, reviewer_id, action, from_status, to_status, reason, notes, created_at)
+               VALUES (?, ?, 'photo_removed', NULL, NULL, NULL, ?, ?)""",
+            (photo["report_id"], reviewer["id"], f"Fotografie #{photo_id} ștearsă de recenzent.", now_iso),
+        )
+    _refresh_checks(db, [photo["report_id"]])
+    return {"removed": True, "id": photo_id}
 
 
 @router.get("/reports/{public_id}/comments")

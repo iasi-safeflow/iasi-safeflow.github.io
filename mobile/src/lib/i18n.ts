@@ -214,7 +214,7 @@ export const t = {
   trustedActive: 'Contributor de încredere activ: confirmările dvs. (+1) contează 2×.',
   trustedProgress: 'Mai aveți nevoie de {n} puncte validate pentru confirmări cu greutate 2×.',
   pointsHowBody:
-    'Primiți puncte doar pentru contribuții validate de un recenzent (+15 raport validat, +5 descriere detaliată, +5 confirmare validată, +25 când ajunge pregătit pentru sesizare sau rezolvat). Puteți folosi 50 de puncte pentru a susține prioritar un raport pe hartă.',
+    'Primiți puncte doar pentru contribuții validate de un recenzent (+15 raport validat, +5 descriere detaliată, +5 dovadă foto validată, +5 confirmare validată, +5 comentariu aprobat, +25 când ajunge pregătit pentru sesizare sau rezolvat). Puteți folosi 50 de puncte pentru a susține prioritar un raport pe hartă.',
   pointsHistoryTitle: 'Istoric recent',
   pointsHistoryEmpty: 'Nu aveți încă puncte validate.',
   boostButton: 'Susține prioritar (-50 pct)',
@@ -234,6 +234,20 @@ export const t = {
   commentsReviewEmpty: 'Niciun comentariu pentru acest raport.',
   commentApprove: 'Aprobă public',
   commentReject: 'Respinge',
+  photosLabel: 'Fotografii (opțional, max 2)',
+  photosHint:
+    'Vizibile exclusiv recenzorilor (nu apar pe harta publică). Metadatele EXIF sunt eliminate. Evitați fețe sau numere de înmatriculare (+5 puncte civice la validare).',
+  addFromGallery: 'Alege din galerie',
+  takePhoto: 'Fă o fotografie',
+  photoDenied: 'Accesul la galerie sau cameră nu a fost permis.',
+  photoFailed: 'Fotografia nu a putut fi pregătită. Încercați o imagine JPEG sau PNG.',
+  photoRemove: 'Elimină',
+  photoPreviewA11y: 'Fotografie atașată {n} din 2',
+  photosReviewTitle: 'Fotografii atașate (doar pentru recenzent)',
+  photosReviewEmpty: 'Nicio fotografie atașată acestui raport.',
+  photosReviewPrivacy: 'Fotografie pregătită pentru recenzie (metadatele EXIF au fost eliminate; nu apare public).',
+  photoDeleteReview: 'Șterge fotografia (date personale)',
+  summaryPhotos: 'Fotografii atașate',
   dossierButton: 'Generează dosar de sesizare',
   dossierTitle: 'Dosar de sesizare',
   dossierLockedHint: 'Validați raportul pentru a putea genera dosarul de sesizare.',
@@ -382,6 +396,7 @@ export const DECISION_LABELS: Record<string, string> = {
   duplicate_revoke: 'Legătură de duplicat anulată',
   comment_approved: 'Comentariu aprobat',
   comment_rejected: 'Comentariu respins',
+  photo_removed: 'Fotografie ștearsă',
 };
 
 export const COMMENT_TAG_LABELS: Record<string, string> = {
@@ -417,6 +432,8 @@ export function factorText(code: string, detail: unknown): string {
       const d = (detail ?? {}) as { chars?: number; words?: number };
       return `Descriere: ${d.chars ?? 0} caractere, ${d.words ?? 0} cuvinte`;
     }
+    case 'evidence_photo':
+      return detail ? 'Dovadă foto atașată (+10 prioritizare recenzent)' : 'Fără fotografie atașată';
     default:
       return code;
   }
@@ -480,6 +497,10 @@ export function observationsCountLabel(n: number): string {
 
 export function clustersChipLabel(n: number): string {
   return roPlural(n, 'zonă frecventă', 'zone frecvente');
+}
+
+export function photosCountLabel(n: number): string {
+  return roPlural(n, 'fotografie atașată', 'fotografii atașate');
 }
 
 // The public API gives only the observation date, so this counts whole days in local time.

@@ -93,9 +93,14 @@ def points(result, code):
 def test_score_is_deterministic_and_lists_every_factor():
     assert score() == score()
     codes = [f["code"] for f in score()["factors"]]
-    assert codes == ["category", "vulnerable_users", "corroboration", "recency", "location_precision", "description"]
+    assert codes == ["category", "vulnerable_users", "corroboration", "recency", "location_precision", "description", "evidence_photo"]
     base = score()
     assert base["score"] == sum(f["points"] for f in base["factors"]) == 20 + 15  # category + fresh
+
+
+def test_evidence_photo_adds_ten_points():
+    assert points(score(has_photo=True), "evidence_photo") == 10
+    assert points(score(has_photo=False), "evidence_photo") == 0
 
 
 def test_category_weight():

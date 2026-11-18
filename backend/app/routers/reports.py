@@ -14,6 +14,7 @@ from ..db import iso, utcnow
 from ..deps import current_user, get_db, get_settings, optional_user
 from ..domain import verification
 from ..errors import api_error, validation_error_body
+from ..photos import decode_and_sanitize_photo, photo_counts
 from ..points import boost_counts
 from ..safety import emergency_reasons, emergency_response_body
 from ..schemas import ReportCreate
@@ -29,7 +30,12 @@ def new_public_id() -> str:
     return "SF-" + "".join(secrets.choice(_ID_ALPHABET) for _ in range(8))
 
 
-def own_report_out(row: sqlite3.Row, confirmations_count: int = 0, boosts_count: int = 0) -> dict:
+def own_report_out(
+    row: sqlite3.Row,
+    confirmations_count: int = 0,
+    boosts_count: int = 0,
+    photos_count: int = 0,
+) -> dict:
     return {
         "public_id": row["public_id"],
         "category": row["category"],
@@ -49,6 +55,7 @@ def own_report_out(row: sqlite3.Row, confirmations_count: int = 0, boosts_count:
         "rejection_reason": row["rejection_reason"],
         "confirmations_count": confirmations_count,
         "boosts_count": boosts_count,
+        "photos_count": photos_count,
     }
 
 
@@ -81,6 +88,13 @@ def create_report(
     if count >= settings.report_rate_limit_per_hour:
         raise api_error(429, "rate_limited", "Ați trimis prea multe rapoarte într-o oră. Încercați mai târziu.")
 
+    sanitized_photos: list[tuple[str, bytes]] = []
+    for item in report.photos:
+        try:
+            sanitized_photos.append(decode_and_sanitize_photo(item.data, item.mime_type))
+        except ValueError as exc:
+            raise api_error(422, "invalid_photo", str(exc))
+
     fields = {
         "public_id": new_public_id(),
         "category": report.category,
@@ -90,6 +104,7 @@ def create_report(
         "location_source": report.location_source,
         "gps_accuracy_m": report.gps_accuracy_m,
         "observed_at": iso(report.observed_at),
+        "has_photo": bool(sanitized_photos),
     }
     # 2. The review assistant checks the report before it is stored. Any flag keeps it off the public map until a
     # reviewer decides; if the assistant itself fails, the report is held too rather than published unchecked.
@@ -99,6 +114,7 @@ def create_report(
         log.exception("Review assistant failed; the new report is held for a reviewer.")
         result = None
     visibility = "held" if result is None or result["flags"] else "public"
+    now_iso = iso(now)
     with db:
         cur = db.execute(
             """INSERT INTO reports (public_id, reporter_id, category, description, lat, lon, location_source,
@@ -107,9 +123,15 @@ def create_report(
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user_report', 0, 'submitted', ?)""",
             (
                 fields["public_id"], user["id"], fields["category"], fields["description"], fields["lat"], fields["lon"],
-                fields["location_source"], fields["gps_accuracy_m"], fields["observed_at"], iso(now), iso(now), visibility,
+                fields["location_source"], fields["gps_accuracy_m"], fields["observed_at"], now_iso, now_iso, visibility,
             ),
         )
+        for mime, data in sanitized_photos:
+            db.execute(
+                """INSERT INTO report_photos (report_id, uploader_id, mime_type, size_bytes, data, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (cur.lastrowid, user["id"], mime, len(data), data, now_iso),
+            )
         if result is not None:
             record(db, cur.lastrowid, "created", result, now)
     # 3. Open reports nearby may now have a duplicate or a corroboration: append a fresh check for each.
@@ -120,7 +142,7 @@ def create_report(
     row = db.execute("SELECT * FROM reports WHERE id = ?", (cur.lastrowid,)).fetchone()
     if visibility == "public":
         request.app.state.area_streets.enqueue(row["lat"], row["lon"])  # street name for the public list, later
-    return own_report_out(row)
+    return own_report_out(row, photos_count=len(sanitized_photos))
 
 
 @router.get("/mine")
@@ -131,4 +153,5 @@ def my_reports(user: sqlite3.Row = Depends(current_user), db: sqlite3.Connection
     ids = [r["id"] for r in rows]
     counts = confirmation_counts(db, ids)
     boosts = boost_counts(db, ids)
-    return [own_report_out(r, counts.get(r["id"], 0), boosts.get(r["id"], 0)) for r in rows]
+    photos = photo_counts(db, ids)
+    return [own_report_out(r, counts.get(r["id"], 0), boosts.get(r["id"], 0), photos.get(r["id"], 0)) for r in rows]

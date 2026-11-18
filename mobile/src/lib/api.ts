@@ -128,6 +128,19 @@ export type PublicCluster = {
   disclaimer: string;
 };
 
+export type PhotoUploadInput = {
+  data: string;
+  mime_type: string;
+};
+
+export type ReviewPhoto = {
+  id: number;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+  data_url: string;
+};
+
 export type OwnReport = {
   public_id: string;
   category: string;
@@ -145,6 +158,7 @@ export type OwnReport = {
   rejection_reason: string | null;
   confirmations_count: number;
   boosts_count: number;
+  photos_count?: number;
 };
 
 export type ReviewReport = OwnReport & {
@@ -155,6 +169,7 @@ export type ReviewReport = OwnReport & {
   confirmations_count: number;
   boosts_count: number;
   pending_comments_count: number;
+  photos_count: number;
   assistant: AssistantSummary | null;
 };
 

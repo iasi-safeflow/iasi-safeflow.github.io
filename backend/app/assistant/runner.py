@@ -52,8 +52,16 @@ def assess(db: sqlite3.Connection, report: dict, now: datetime) -> dict:
         if report_id is not None
         else 0
     )
+    has_photo = bool(report.get("has_photo")) or (
+        report_id is not None
+        and db.execute("SELECT 1 FROM report_photos WHERE report_id = ? LIMIT 1", (report_id,)).fetchone() is not None
+    )
     return {
-        "importance": score_importance(report, corroborations=len(duplicates) + confirmed + citizen_confirmations, now=now),
+        "importance": score_importance(
+            {**report, "has_photo": has_photo},
+            corroborations=len(duplicates) + confirmed + citizen_confirmations,
+            now=now,
+        ),
         "duplicates": duplicates,
         "flags": detect_flags(report),
     }

@@ -4,7 +4,7 @@ Word lists are matched against normalised text (lowercase, no diacritics), at wo
 Change ASSISTANT_VERSION whenever a rule or weight changes, so stored results stay traceable.
 """
 
-ASSISTANT_VERSION = "asistent-reguli-v1"
+ASSISTANT_VERSION = "asistent-reguli-v2"
 
 # ---- Duplicate suggestions ----
 DUPLICATE_RADIUS_M = 150.0
@@ -47,6 +47,7 @@ GPS_PRECISE_POINTS = 5
 DESCRIPTION_MIN_CHARS = 60
 DESCRIPTION_MIN_WORDS = 10
 DESCRIPTION_POINTS = 5
+PHOTO_EVIDENCE_POINTS = 10
 IMPORTANCE_HIGH = 65  # "Ridicată"
 IMPORTANCE_MEDIUM = 40  # "Medie"; below this "Scăzută"
 

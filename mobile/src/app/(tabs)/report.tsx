@@ -7,6 +7,7 @@ import { Text } from '@/components/AppText';
 import { EmergencyStop } from '@/components/EmergencyStop';
 import { LeafletMap } from '@/components/LeafletMap';
 import { ObservedAtField } from '@/components/ObservedAtField';
+import { DraftPhoto, PhotoPickerField } from '@/components/PhotoPickerField';
 import { ReportSteps, StepPick } from '@/components/ReportSteps';
 import { StreetSearch } from '@/components/StreetSearch';
 import { Button, Card, Chip, ErrorText, Field, Heading, Label, SourceBadge, useStyles } from '@/components/ui';
@@ -29,6 +30,7 @@ export default function ReportScreen() {
   const [pick, setPick] = useState<Pick | null>(null);
   const [description, setDescription] = useState('');
   const [observedAt, setObservedAt] = useState(new Date());
+  const [photos, setPhotos] = useState<DraftPhoto[]>([]);
   const [stopped, setStopped] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -48,12 +50,13 @@ export default function ReportScreen() {
   }, [result, haptic]);
 
   const reset = (keepPastIncident = false) => {
-    // Nothing from a stopped submission is kept, including the description.
+    // Nothing from a stopped submission is kept, including the description or draft photos.
     setDanger(keepPastIncident ? false : null);
     setCategory(keepPastIncident ? 'incident_trecut' : null);
     setDescription('');
     setPick(null);
     setObservedAt(new Date());
+    setPhotos([]);
     setStopped(false);
     setError('');
     setResult(null);
@@ -112,6 +115,9 @@ export default function ReportScreen() {
           gps_accuracy_m: pick.accuracy ?? null,
           observed_at: observedAt.toISOString(),
           immediate_danger: false,
+          ...(photos.length > 0
+            ? { photos: photos.map((p) => ({ data: p.base64, mime_type: p.mimeType })) }
+            : {}),
         },
       });
       setResult(created);
@@ -175,6 +181,8 @@ export default function ReportScreen() {
           setDescription={setDescription}
           observedAt={observedAt}
           setObservedAt={setObservedAt}
+          photos={photos}
+          setPhotos={setPhotos}
           gate={gate}
           submit={submit}
           busy={busy}
@@ -294,6 +302,8 @@ export default function ReportScreen() {
 
           <Label>{t.observedAt}</Label>
           <ObservedAtField value={observedAt} onChange={setObservedAt} />
+
+          <PhotoPickerField photos={photos} onChange={setPhotos} />
 
           <Card>
             <Text style={styles.muted}>{t.privacyNote}</Text>

@@ -60,6 +60,7 @@ def build_dossier(
     street: str | None,
     confirmations_count: int,
     boosts_count: int = 0,
+    photos_count: int = 0,
     duplicate_ids: list[str],
     cluster: dict | None,
     importance: dict | None,
@@ -97,6 +98,8 @@ def build_dossier(
     ]
     if boosts_count > 0:
         lines.append(f"- Susțineri prioritare cu puncte civice: {boosts_count}")
+    if photos_count > 0:
+        lines.append(f"- Dovezi foto atașate (vizibile exclusiv recenzentului): {photos_count}")
     if duplicate_ids:
         lines.append(f"- Duplicate legate: {', '.join(duplicate_ids)}")
     if report.get("is_simulated"):
@@ -189,6 +192,7 @@ td.k{{width:210px;font-weight:600;color:#4a4360}} .desc{{background:#f7f5fc;bord
 <tr><td class="k">Observat / Înregistrat</td><td>{e(obs_str)} / {e(created_str)}</td></tr>
 <tr><td class="k">Confirmări cetățeni (+1)</td><td>{confirmations_count}</td></tr>
 {f'<tr><td class="k">Susțineri prioritare</td><td>{boosts_count}</td></tr>' if boosts_count > 0 else ''}
+{f'<tr><td class="k">Dovezi foto (uz intern)</td><td>{photos_count}</td></tr>' if photos_count > 0 else ''}
 {f'<tr><td class="k">Duplicate legate</td><td>{e(", ".join(duplicate_ids))}</td></tr>' if duplicate_ids else ''}
 {f'<tr><td class="k">Sursă</td><td>Date simulate (demonstrație)</td></tr>' if report.get('is_simulated') else ''}
 </table>

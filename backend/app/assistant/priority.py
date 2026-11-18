@@ -55,5 +55,8 @@ def score_importance(report: dict, corroborations: int, now: datetime) -> dict:
     complete = chars >= config.DESCRIPTION_MIN_CHARS and words >= config.DESCRIPTION_MIN_WORDS
     add("description", config.DESCRIPTION_POINTS if complete else 0, {"chars": chars, "words": words})
 
+    has_photo = bool(report.get("has_photo"))
+    add("evidence_photo", config.PHOTO_EVIDENCE_POINTS if has_photo else 0, has_photo)
+
     score = max(0, min(100, sum(f["points"] for f in factors)))
     return {"score": score, "level": importance_level(score), "factors": factors}

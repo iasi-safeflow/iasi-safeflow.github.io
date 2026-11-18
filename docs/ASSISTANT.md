@@ -13,7 +13,7 @@ machine-learning model, no external AI service, no API key, and no network call.
   If the assistant fails, the report is held too, rather than published unchecked. Later re-checks never change
   visibility.
 - Every result is stored in its own row of `assistant_runs`, separate from the user's text, with the version
-  (`asistent-reguli-v1`) and a timestamp. The table is append-only: database triggers block `UPDATE` and `DELETE`.
+  (`asistent-reguli-v2`) and a timestamp. The table is append-only: database triggers block `UPDATE` and `DELETE`.
   A newer result is a new row.
 - Everywhere in the UI it is labelled **"Sugestie automată – nu este o verificare"**.
 - **Importance is a triage suggestion, not proof that a place is dangerous.** It is never called "risc" or
@@ -75,6 +75,7 @@ points, including factors worth 0. All weights live in `backend/app/assistant/co
 | Recency | `round(15 × max(0, 1 − days_since_observed / 30))`: 15 for a report observed today, 0 after 30 days |
 | Location precision | +5 for GPS with accuracy ≤ 30 m |
 | Description completeness | +5 for at least 60 characters and at least 10 words |
+| Photo evidence | +10 if the report includes at least one optional reviewer-only photo |
 
 **Levels:** ≥ 65 **Ridicată**, 40–64 **Medie**, < 40 **Scăzută**.
 

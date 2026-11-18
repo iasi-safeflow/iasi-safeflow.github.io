@@ -25,7 +25,7 @@ def test_history_is_reviewer_only(client, reporter_token):
 def test_new_check_is_pending_until_a_reviewer_acts(client, reviewer_token, submitted_report):
     [row] = _history(client, reviewer_token)
     assert row["report_id"] == submitted_report["public_id"]
-    assert row["assistant_version"] == "asistent-reguli-v1" and row["triggered_by"] == "created"
+    assert row["assistant_version"] == "asistent-reguli-v2" and row["triggered_by"] == "created"
     assert row["importance"]["factors"] and row["flags"] == [] and row["duplicates"] == []
     assert row["decision"] == {"kind": "pending"}
 

@@ -172,6 +172,19 @@ MIGRATIONS: tuple[tuple[str, ...], ...] = (
            )""",
         "CREATE INDEX idx_report_comments_report ON report_comments (report_id, id DESC)",
     ),
+    # 7: optional reviewer-only photos attached to reports (EXIF-stripped)
+    (
+        """CREATE TABLE report_photos (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               report_id INTEGER NOT NULL REFERENCES reports(id),
+               uploader_id INTEGER NOT NULL REFERENCES users(id),
+               mime_type TEXT NOT NULL CHECK (mime_type IN ('image/jpeg', 'image/png', 'image/webp')),
+               size_bytes INTEGER NOT NULL,
+               data BLOB NOT NULL,
+               created_at TEXT NOT NULL
+           )""",
+        "CREATE INDEX idx_report_photos_report ON report_photos (report_id, id)",
+    ),
 )
 
 

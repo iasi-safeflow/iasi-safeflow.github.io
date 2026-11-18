@@ -47,7 +47,15 @@
         }
       ],
       "./plugins/withReleaseSigning",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fotografiile selectate sunt folosite doar ca dovadă opțională la rapoartele de siguranță rutieră și sunt vizibile exclusiv recenzenților.",
+          "cameraPermission": "Camera este folosită doar când alegeți să faceți o fotografie opțională pentru un raport.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false
