@@ -216,3 +216,14 @@ export type HistoryRow = {
   duplicates: { public_id: string; level: DuplicateLevel; score: number }[];
   decision: ReviewerDecision;
 };
+
+export type DossierOut = {
+  public_id: string;
+  status: string;
+  status_label: string;
+  recipient: string;
+  generated_at: string;
+  disclaimer: string;
+  text: string;
+  html: string;
+};

@@ -5,11 +5,12 @@ import { ScrollView, View } from 'react-native';
 import { Text } from '@/components/AppText';
 import { LeafletMap } from '@/components/LeafletMap';
 import { AssistantPanel, evidenceRanges, HighlightedText } from '@/components/assistant';
+import { DossierModal } from '@/components/DossierModal';
 import { ReadAloudButton } from '@/components/ReadAloudButton';
 import { RejectSheet } from '@/components/RejectSheet';
 import { Button, Card, ErrorText, Field, Heading, Icon, IconName, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { announce } from '@/lib/a11y';
-import { api, AssistantAnalysis, AuditEntry, errorText, ReviewReport } from '@/lib/api';
+import { api, AssistantAnalysis, AuditEntry, DossierOut, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
   CATEGORY_LABELS,
@@ -59,6 +60,8 @@ export default function ReviewDetailScreen() {
   const [rejectError, setRejectError] = useState('');
   const [analysis, setAnalysis] = useState<AssistantAnalysis | null>(null);
   const [assistantError, setAssistantError] = useState('');
+  const [dossier, setDossier] = useState<DossierOut | null>(null);
+  const [dossierError, setDossierError] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -124,6 +127,18 @@ export default function ReviewDetailScreen() {
       announce(t.decisionSaved);
     } catch (e) {
       setAssistantError(errorText(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const openDossier = async () => {
+    setBusy('dossier');
+    setDossierError('');
+    try {
+      setDossier(await api<DossierOut>(`/review/reports/${id}/dossier`, { token }));
+    } catch (e) {
+      setDossierError(errorText(e));
     } finally {
       setBusy(null);
     }
@@ -235,6 +250,19 @@ export default function ReviewDetailScreen() {
           disabled={!!busy}
         />
       ))}
+      {report.status === 'validated' || report.status === 'referred' || report.status === 'resolved' ? (
+        <Button
+          title={t.dossierButton}
+          icon="file-text"
+          variant="secondary"
+          onPress={openDossier}
+          loading={busy === 'dossier'}
+          disabled={!!busy}
+        />
+      ) : report.status !== 'rejected' ? (
+        <Text style={[styles.muted, { marginTop: 4 }]}>{t.dossierLockedHint}</Text>
+      ) : null}
+      <ErrorText>{dossierError}</ErrorText>
       <ErrorText>{error}</ErrorText>
       <RejectSheet
         visible={rejecting}
@@ -243,6 +271,7 @@ export default function ReviewDetailScreen() {
         onCancel={() => setRejecting(false)}
         onConfirm={reject}
       />
+      <DossierModal dossier={dossier} onClose={() => setDossier(null)} />
 
       <Heading level={2}>{t.audit}</Heading>
       {audit.length === 0 && <Text style={styles.muted}>{t.auditEmpty}</Text>}

@@ -202,6 +202,7 @@ lists every check and what the reviewer did next. Formulas, weights and limitati
 
 - **1-tap corroboration ("Și eu am observat (+1)"):** on the Home map or list, any visitor can confirm an open public report with one tap (re-tap to undo; authors cannot confirm their own report). Stored per account or device ID in `report_confirmations`, rate-limited, and factored into assistant corroboration.
 - **Hotspot clusters (`Zone frecvente`):** `GET /public/clusters` groups non-rejected public reports within 200 m and the last 30 days (`>= 2` reports, or 1 report with `>= 2` confirmations) using rounded coordinates only. Clusters are always labelled as potential patterns from user observations, never official accident black spots.
+- **Official referral dossier (`Generează dosar de sesizare`):** reviewers can generate a formal Romanian referral dossier (`GET /review/reports/{id}/dossier`) for validated, referred, or resolved reports, including confirmations, hotspot context, and audit history. It can be shared on Android or copied / downloaded / printed to PDF on the web, and always states that nothing was sent automatically.
 
 ## Data sources and attribution
 

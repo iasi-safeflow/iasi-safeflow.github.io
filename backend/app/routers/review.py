@@ -3,16 +3,20 @@
 import hashlib
 import hmac
 import sqlite3
+from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from ..assistant.config import ASSISTANT_VERSION
 from ..assistant.runner import latest_runs, nearby_open_ids, pair_decisions, recheck, run_out
+from ..clusters import CLUSTER_WINDOW_DAYS, build_clusters
 from ..config import Settings, log
 from ..db import iso, utcnow
 from ..deps import get_db, get_settings, require_reviewer
-from ..domain import PUBLISHING_STATUSES, TRANSITIONS, verification
+from ..domain import PUBLIC_HIDDEN_STATUSES, PUBLISHING_STATUSES, TRANSITIONS, verification
+from ..dossier import DOSSIER_STATUSES, build_dossier
 from ..errors import api_error
+from ..geocoding import area_street
 from ..schemas import DuplicateDecision, StatusChange
 from .public import confirmation_counts
 
@@ -374,3 +378,59 @@ def assistant_history(
         if len(out) >= limit:
             break
     return out
+
+
+@router.get("/reports/{public_id}/dossier")
+def report_dossier(
+    public_id: str,
+    request: Request,
+    _: sqlite3.Row = Depends(require_reviewer),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Build a ready-to-file Romanian referral dossier for a validated, referred, or resolved report."""
+    row = _get_report(db, public_id)
+    if row["status"] not in DOSSIER_STATUSES:
+        raise api_error(
+            409,
+            "dossier_requires_validation",
+            "Dosarul poate fi generat doar pentru rapoarte validate, pregătite pentru sesizare sau rezolvate.",
+        )
+
+    now = utcnow()
+    geocoder = request.app.state.geocoder
+    street = area_street(geocoder, db, row["lat"], row["lon"])
+    conf_count = confirmation_counts(db, [row["id"]]).get(row["id"], 0)
+    decisions = pair_decisions(db, row["id"])
+    dup_ids = [
+        db.execute("SELECT public_id FROM reports WHERE id = ?", (other_id,)).fetchone()[0]
+        for other_id, d in decisions.items()
+        if d["relation_type"] == "duplicate_confirmed"
+    ]
+
+    since = iso(now - timedelta(days=CLUSTER_WINDOW_DAYS))
+    hidden_marks = ",".join("?" * len(PUBLIC_HIDDEN_STATUSES))
+    pub_rows = [
+        dict(r)
+        for r in db.execute(
+            f"SELECT * FROM reports WHERE public_visibility = 'public' AND status NOT IN ({hidden_marks}) AND observed_at >= ?",
+            [*PUBLIC_HIDDEN_STATUSES, since],
+        ).fetchall()
+    ]
+    pub_counts = confirmation_counts(db, [r["id"] for r in pub_rows])
+    clusters = build_clusters(pub_rows, pub_counts, street_for_row=lambda r: area_street(geocoder, db, r["lat"], r["lon"]))
+    cluster = next((c for c in clusters if row["public_id"] in c["report_ids"]), None)
+
+    latest = latest_runs(db, [row["id"]]).get(row["id"])
+    importance = run_out(latest)["importance"] if latest else None
+    audit = [audit_out(r) for r in db.execute(_AUDIT_SELECT + " WHERE a.report_id = ? ORDER BY a.id", (row["id"],)).fetchall()]
+
+    return build_dossier(
+        dict(row),
+        street=street,
+        confirmations_count=conf_count,
+        duplicate_ids=dup_ids,
+        cluster=cluster,
+        importance=importance,
+        audit=audit,
+        generated_at=now,
+    )
