@@ -220,6 +220,20 @@ export const t = {
   boostButton: 'Susține prioritar (-50 pct)',
   boostedLabel: 'Susținut prioritar',
   boostNeedPoints: 'Aveți {b} pct (necesar {c} pct pentru susținere prioritară).',
+  updatesButton: 'Actualizări / Comentarii',
+  commentsTitle: 'Actualizări comunitate',
+  commentsEmpty: 'Nu există încă comentarii aprobate.',
+  commentAddTitle: 'Adăugați o actualizare',
+  commentPlaceholder: 'Comentariu opțional (5–300 caractere, fără date personale)…',
+  commentSubmit: 'Trimite actualizarea',
+  commentTagSaved: 'Actualizarea a fost înregistrată.',
+  commentPendingNotice: 'Comentariul dvs. a fost trimis spre verificare și va deveni public după aprobarea unui recenzent.',
+  commentBodyTooShort: 'Comentariul trebuie să aibă cel puțin 5 caractere (sau lăsați gol).',
+  pendingCommentsFilter: 'Comentarii în așteptare',
+  commentsReviewTitle: 'Comentarii de moderat',
+  commentsReviewEmpty: 'Niciun comentariu pentru acest raport.',
+  commentApprove: 'Aprobă public',
+  commentReject: 'Respinge',
   dossierButton: 'Generează dosar de sesizare',
   dossierTitle: 'Dosar de sesizare',
   dossierLockedHint: 'Validați raportul pentru a putea genera dosarul de sesizare.',
@@ -366,6 +380,20 @@ export const DECISION_LABELS: Record<string, string> = {
   duplicate_link: 'Duplicat acceptat',
   not_duplicate: 'Marcat „Nu e duplicat”',
   duplicate_revoke: 'Legătură de duplicat anulată',
+  comment_approved: 'Comentariu aprobat',
+  comment_rejected: 'Comentariu respins',
+};
+
+export const COMMENT_TAG_LABELS: Record<string, string> = {
+  still_there: 'Încă există',
+  worse: 'S-a agravat',
+  looks_resolved: 'Pare rezolvat',
+};
+
+export const COMMENT_STATUS_LABELS: Record<string, string> = {
+  pending: 'În așteptare',
+  approved: 'Aprobat (public)',
+  rejected: 'Respins',
 };
 
 // One "De ce?" line per importance factor; `detail` comes from backend/app/assistant/priority.py.

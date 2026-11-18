@@ -153,6 +153,25 @@ MIGRATIONS: tuple[tuple[str, ...], ...] = (
            )""",
         "CREATE INDEX idx_report_boosts_report ON report_boosts (report_id)",
     ),
+    # 6: structured community updates and moderated comments on reports
+    (
+        """CREATE TABLE report_comments (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               report_id INTEGER NOT NULL REFERENCES reports(id),
+               user_id INTEGER REFERENCES users(id),
+               actor_key TEXT NOT NULL,
+               tag TEXT NOT NULL CHECK (tag IN ('still_there', 'worse', 'looks_resolved')),
+               body TEXT NOT NULL DEFAULT '',
+               moderation_status TEXT NOT NULL DEFAULT 'approved'
+                   CHECK (moderation_status IN ('pending', 'approved', 'rejected')),
+               flags_json TEXT NOT NULL DEFAULT '[]',
+               is_simulated INTEGER NOT NULL DEFAULT 0,
+               created_at TEXT NOT NULL,
+               reviewed_at TEXT,
+               reviewed_by INTEGER REFERENCES users(id)
+           )""",
+        "CREATE INDEX idx_report_comments_report ON report_comments (report_id, id DESC)",
+    ),
 )
 
 

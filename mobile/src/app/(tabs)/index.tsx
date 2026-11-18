@@ -3,13 +3,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/AppText';
+import { CommentsModal } from '@/components/CommentsModal';
 import { EmergencyBanner } from '@/components/EmergencyBanner';
 import { LeafletMap, MapCluster, MapMarker } from '@/components/LeafletMap';
 import { ReportList } from '@/components/ReportList';
 import { StreetSearch } from '@/components/StreetSearch';
 import { Button, Chip, ErrorText, Heading, Icon, SourceBadge, StatusBadge, useStyles, useTabBarSpace } from '@/components/ui';
 import { announce } from '@/lib/a11y';
-import { api, errorText, PublicCluster, PublicReport } from '@/lib/api';
+import { api, errorText, PublicCluster, PublicReport, UpdatesSummary } from '@/lib/api';
 import { useA11y } from '@/lib/a11ySettings';
 import { useAuth } from '@/lib/auth';
 import { getDeviceId } from '@/lib/deviceId';
@@ -49,6 +50,7 @@ export default function PublicMapScreen() {
   const [error, setError] = useState('');
   const [confirmError, setConfirmError] = useState('');
   const [confirmBusyId, setConfirmBusyId] = useState<string | null>(null);
+  const [commentsForId, setCommentsForId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { srMode } = useA11y();
   // The screen-reader mode opens on the list ("Probleme semnalate în apropiere"); the map stays one tap away.
@@ -185,6 +187,15 @@ export default function PublicMapScreen() {
 
   const selected = mapMode === 'points' ? reports.find((r) => r.public_id === selectedId) : undefined;
   const selectedCluster = mapMode === 'clusters' ? clusters.find((c) => c.id === selectedClusterId) : undefined;
+  const commentsReport = reports.find((r) => r.public_id === commentsForId) ?? null;
+
+  const onCommentUpdated = useCallback((publicId: string, summary: UpdatesSummary, approvedCount: number) => {
+    setReports((prev) =>
+      prev.map((r) =>
+        r.public_id === publicId ? { ...r, updates_summary: summary, approved_comments_count: approvedCount } : r,
+      ),
+    );
+  }, []);
 
   // Screen-reader users hear how many reports there are once they have loaded.
   useEffect(() => {
@@ -275,6 +286,7 @@ export default function PublicMapScreen() {
               origin={position.point}
               onToggleConfirm={toggleConfirm}
               onBoost={user ? boostReport : undefined}
+              onOpenComments={setCommentsForId}
               canBoost={!!points && points.balance >= points.boost_cost}
               confirmBusyId={confirmBusyId}
             />
@@ -369,6 +381,12 @@ export default function PublicMapScreen() {
                       disabled={!!confirmBusyId}
                       onPress={() => toggleConfirm(selected.public_id)}
                     />
+                      <Button
+                        title={`${t.updatesButton} (${selected.approved_comments_count})`}
+                        icon="message-square"
+                        variant="secondary"
+                        onPress={() => setCommentsForId(selected.public_id)}
+                      />
                     {user && points && (
                       selected.boosted_by_me ? (
                         <Text style={[styles.muted, { marginTop: 4 }]}>{t.boostedLabel}</Text>
@@ -475,6 +493,11 @@ export default function PublicMapScreen() {
         </View>
         <Text style={[styles.muted, { fontSize: 12, marginTop: 2 }]}>{t.mapDisclaimer}</Text>
       </View>
+      <CommentsModal
+        report={commentsReport}
+        onClose={() => setCommentsForId(null)}
+        onUpdated={onCommentUpdated}
+      />
     </View>
   );
 }

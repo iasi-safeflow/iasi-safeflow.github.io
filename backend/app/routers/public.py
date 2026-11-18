@@ -4,20 +4,26 @@ Held reports (public_visibility = 'held') never appear here, not even by ID, unt
 """
 
 import hashlib
+import json
 import re
 import sqlite3
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, Query, Request
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from ..clusters import CLUSTER_WINDOW_DAYS, build_clusters
+from ..comments import comment_counts, detect_comment_flags, public_comment_out, updates_summary
 from ..db import iso, utcnow
 from ..deps import current_user, get_db, optional_user
 from ..domain import PUBLIC_COORD_DECIMALS, PUBLIC_HIDDEN_STATUSES, verification
-from ..errors import api_error
+from ..errors import api_error, validation_error_body
 from ..geocoding import area_street
 from ..points import boost_counts, boosted_by_user, spend_boost, user_points
 from ..rate_limit import check_rate_limit, client_ip
+from ..safety import emergency_reasons, emergency_response_body
+from ..schemas import CommentCreate
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -75,6 +81,8 @@ def public_report_out(
     confirmed_by_me: bool = False,
     boosts_count: int = 0,
     boosted_by_me: bool = False,
+    updates: dict[str, int] | None = None,
+    approved_comments_count: int = 0,
 ) -> dict:
     return {
         "public_id": row["public_id"],
@@ -93,6 +101,8 @@ def public_report_out(
         "confirmed_by_me": confirmed_by_me,
         "boosts_count": boosts_count,
         "boosted_by_me": boosted_by_me,
+        "updates_summary": updates or {"still_there": 0, "worse": 0, "looks_resolved": 0},
+        "approved_comments_count": approved_comments_count,
     }
 
 
@@ -121,6 +131,8 @@ def public_reports(
     mine = _confirmed_ids(db, ids, _caller_keys(user, x_device_id))
     boosts = boost_counts(db, ids)
     my_boosts = boosted_by_user(db, ids, user["id"] if user is not None else None)
+    updates = updates_summary(db, ids)
+    approved_comments = comment_counts(db, ids, "approved")
     return [
         public_report_out(
             r,
@@ -129,6 +141,8 @@ def public_reports(
             r["id"] in mine,
             boosts.get(r["id"], 0),
             r["id"] in my_boosts,
+            updates.get(r["id"]),
+            approved_comments.get(r["id"], 0),
         )
         for r in rows
     ]
@@ -153,6 +167,8 @@ def public_report_status(
     mine = _confirmed_ids(db, [row["id"]], _caller_keys(user, x_device_id))
     boosts = boost_counts(db, [row["id"]])
     my_boosts = boosted_by_user(db, [row["id"]], user["id"] if user is not None else None)
+    updates = updates_summary(db, [row["id"]])
+    approved_comments = comment_counts(db, [row["id"]], "approved")
     return public_report_out(
         row,
         area_street(geocoder, db, row["lat"], row["lon"]),
@@ -160,6 +176,8 @@ def public_report_status(
         row["id"] in mine,
         boosts.get(row["id"], 0),
         row["id"] in my_boosts,
+        updates.get(row["id"]),
+        approved_comments.get(row["id"], 0),
     )
 
 
@@ -232,6 +250,89 @@ def boost_report(
         "boosts_count": boosts_count,
         "boosted_by_me": True,
         "points_balance": new_balance,
+    }
+
+
+@router.get("/reports/{public_id}/comments")
+def list_public_comments(public_id: str, db: sqlite3.Connection = Depends(get_db)):
+    """Approved written comments on a public non-rejected report (no author identity exposed)."""
+    row = db.execute(
+        "SELECT * FROM reports WHERE public_id = ? AND public_visibility = 'public' AND status != 'rejected'",
+        (public_id.upper(),),
+    ).fetchone()
+    if row is None:
+        raise api_error(404, "not_found", "Raportul nu a fost găsit.")
+    rows = db.execute(
+        """SELECT * FROM report_comments
+           WHERE report_id = ? AND moderation_status = 'approved' AND body != ''
+           ORDER BY id DESC LIMIT 100""",
+        (row["id"],),
+    ).fetchall()
+    return [public_comment_out(r) for r in rows]
+
+
+@router.post("/reports/{public_id}/comments", status_code=201)
+def add_comment(
+    public_id: str,
+    request: Request,
+    payload: dict = Body(...),
+    x_device_id: str | None = Header(default=None),
+    user: sqlite3.Row | None = Depends(optional_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Submit a structured update tag + optional note. Written notes wait for reviewer approval before going public."""
+    # 112 gate runs first on raw input before auth or validation, so emergencies are never stored.
+    reasons = emergency_reasons(None, payload.get("body"), None)
+    if reasons:
+        return JSONResponse(status_code=400, content={"detail": emergency_response_body(reasons)})
+
+    keys = _caller_keys(user, x_device_id)
+    if not keys:
+        raise api_error(422, "missing_device_id", "Identificatorul dispozitivului lipsește sau este invalid.")
+
+    check_rate_limit(request.app.state.comment_usage, f"ip:{client_ip(request)}", 20, CONFIRM_WINDOW_S, _CONFIRM_RATE_MSG)
+    check_rate_limit(request.app.state.comment_usage, f"actor:{keys[0]}", 20, CONFIRM_WINDOW_S, _CONFIRM_RATE_MSG)
+
+    try:
+        comment = CommentCreate.model_validate(payload)
+    except ValidationError as exc:
+        return JSONResponse(status_code=422, content=validation_error_body(exc.errors()))
+
+    row = db.execute(
+        "SELECT * FROM reports WHERE public_id = ? AND public_visibility = 'public'", (public_id.upper(),)
+    ).fetchone()
+    if row is None or row["status"] == "rejected":
+        raise api_error(404, "not_found", "Raportul nu a fost găsit.")
+    if row["status"] in _CLOSED_FOR_CONFIRM:
+        raise api_error(409, "report_closed", "Raportul este deja închis și nu mai poate primi actualizări.")
+
+    has_body = bool(comment.body)
+    mod_status = "pending" if has_body else "approved"
+    flags = detect_comment_flags(comment.body)
+    now_iso = iso(utcnow())
+    with db:
+        cur = db.execute(
+            """INSERT INTO report_comments
+                   (report_id, user_id, actor_key, tag, body, moderation_status, flags_json, is_simulated, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+            (
+                row["id"],
+                user["id"] if user is not None else None,
+                keys[0],
+                comment.tag,
+                comment.body,
+                mod_status,
+                json.dumps(flags, ensure_ascii=False),
+                now_iso,
+            ),
+        )
+    return {
+        "id": cur.lastrowid,
+        "tag": comment.tag,
+        "body": comment.body,
+        "moderation_status": mod_status,
+        "updates_summary": updates_summary(db, [row["id"]])[row["id"]],
+        "approved_comments_count": comment_counts(db, [row["id"]], "approved").get(row["id"], 0),
     }
 
 

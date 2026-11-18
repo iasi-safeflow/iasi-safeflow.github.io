@@ -46,6 +46,12 @@ SEED_CONFIRMATIONS = (
     ("SF-TESTDEM7", 3),
 )
 
+# Simulated approved updates/comments so the community updates modal is populated in the demo.
+SEED_COMMENTS = (
+    ("SF-TESTDEMC", "worse", "Situația se repetă zilnic între 07:45 și 08:15 când vin elevii la școală."),
+    ("SF-TESTDEMA", "still_there", "Groapa s-a mărit după ultima ploaie, este greu de evitat pe banda 1."),
+)
+
 
 def _seed_user_id(db: sqlite3.Connection) -> int:
     row = db.execute("SELECT id FROM users WHERE email = ?", (SEED_USER_EMAIL,)).fetchone()
@@ -85,6 +91,16 @@ def seed_demo_reports(db: sqlite3.Connection) -> int:
                        VALUES (?, ?, NULL, 1, ?)""",
                     (rid, f"sim:{public_id}:{idx}", iso(now - timedelta(hours=idx + 1))),
                 )
+        for idx, (public_id, tag, body) in enumerate(SEED_COMMENTS):
+            rid = id_by_public.get(public_id)
+            if rid is None:
+                continue
+            db.execute(
+                """INSERT INTO report_comments
+                       (report_id, user_id, actor_key, tag, body, moderation_status, flags_json, is_simulated, created_at)
+                   VALUES (?, NULL, ?, ?, ?, 'approved', '[]', 1, ?)""",
+                (rid, f"sim:{public_id}:c{idx}", tag, SIMULATED_PREFIX + body, iso(now - timedelta(hours=idx + 1))),
+            )
         # Each demo report gets the same automatic check a real one would; flagged ones start out held.
         for row in db.execute("SELECT * FROM reports WHERE reporter_id = ? ORDER BY created_at, id", (owner,)).fetchall():
             result = assess(db, dict(row), now)

@@ -10,9 +10,12 @@ def test_public_map_is_privacy_safe(client, submitted_report):
         "source_type", "is_simulated", "verification", "area_street",
         "confirmations_count", "confirmed_by_me",
         "boosts_count", "boosted_by_me",
+        "updates_summary", "approved_comments_count",
     }
     assert item["confirmations_count"] == 0 and item["confirmed_by_me"] is False
     assert item["boosts_count"] == 0 and item["boosted_by_me"] is False
+    assert item["updates_summary"] == {"still_there": 0, "worse": 0, "looks_resolved": 0}
+    assert item["approved_comments_count"] == 0
     assert item["lat"] == 47.162 and item["lon"] == 27.589  # rounded to ~100 m
     assert len(item["observed_date"]) == 10  # date only, no exact time
     assert submitted_report["description"] not in str(item)

@@ -14,6 +14,7 @@ from .errors import api_error
 PTS_REPORT_VALIDATED = 15
 PTS_DETAIL_BONUS = 5
 PTS_CONFIRM_VALIDATED = 5
+PTS_COMMENT_APPROVED = 5
 PTS_IMPACT = 25
 BOOST_COST = 50
 TRUSTED_THRESHOLD = 100
@@ -139,6 +140,21 @@ def award_for_status(db: sqlite3.Connection, report: sqlite3.Row, to_status: str
                 f"Impact civic la raport confirmat ({public_id})",
                 now_iso,
             )
+
+
+def award_for_comment(db: sqlite3.Connection, comment: sqlite3.Row, public_id: str, now_iso: str) -> None:
+    """Award +5 pts once per report when a signed-in user's written comment is approved by a reviewer."""
+    if bool(comment["is_simulated"]) or comment["user_id"] is None or not comment["body"]:
+        return
+    _grant(
+        db,
+        comment["user_id"],
+        comment["report_id"],
+        "comment_approved",
+        PTS_COMMENT_APPROVED,
+        f"Comentariu aprobat ({public_id})",
+        now_iso,
+    )
 
 
 def boost_counts(db: sqlite3.Connection, report_ids: list[int]) -> dict[int, int]:

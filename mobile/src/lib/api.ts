@@ -73,6 +73,24 @@ export function errorText(e: unknown): string {
 
 export type User = { id: number; email: string; role: 'reporter' | 'reviewer' };
 
+export type CommentTag = 'still_there' | 'worse' | 'looks_resolved';
+export type UpdatesSummary = Record<CommentTag, number>;
+
+export type PublicComment = {
+  id: number;
+  tag: CommentTag;
+  body: string;
+  is_simulated: boolean;
+  created_at: string;
+};
+
+export type ReviewComment = PublicComment & {
+  moderation_status: 'pending' | 'approved' | 'rejected';
+  flags: AssistantFlag[];
+  author_ref: string;
+  reviewed_at: string | null;
+};
+
 export type PublicReport = {
   public_id: string;
   category: string;
@@ -89,6 +107,8 @@ export type PublicReport = {
   confirmed_by_me: boolean;
   boosts_count: number;
   boosted_by_me: boolean;
+  updates_summary: UpdatesSummary;
+  approved_comments_count: number;
 };
 
 export type PublicCluster = {
@@ -134,6 +154,7 @@ export type ReviewReport = OwnReport & {
   reporter_ref: string;
   confirmations_count: number;
   boosts_count: number;
+  pending_comments_count: number;
   assistant: AssistantSummary | null;
 };
 

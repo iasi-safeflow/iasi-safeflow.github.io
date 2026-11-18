@@ -4,17 +4,19 @@ import { ScrollView, View } from 'react-native';
 
 import { Text } from '@/components/AppText';
 import { LeafletMap } from '@/components/LeafletMap';
-import { AssistantPanel, evidenceRanges, HighlightedText } from '@/components/assistant';
+import { AssistantPanel, evidenceRanges, FlagPill, HighlightedText } from '@/components/assistant';
 import { DossierModal } from '@/components/DossierModal';
 import { ReadAloudButton } from '@/components/ReadAloudButton';
 import { RejectSheet } from '@/components/RejectSheet';
 import { Button, Card, ErrorText, Field, Heading, Icon, IconName, SourceBadge, StatusBadge, useStyles } from '@/components/ui';
 import { announce } from '@/lib/a11y';
-import { api, AssistantAnalysis, AuditEntry, DossierOut, errorText, ReviewReport } from '@/lib/api';
+import { api, AssistantAnalysis, AuditEntry, DossierOut, errorText, ReviewComment, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
   boostLabel,
   CATEGORY_LABELS,
+  COMMENT_STATUS_LABELS,
+  COMMENT_TAG_LABELS,
   confirmLabel,
   DECISION_LABELS,
   formatDateTime,
@@ -63,17 +65,20 @@ export default function ReviewDetailScreen() {
   const [assistantError, setAssistantError] = useState('');
   const [dossier, setDossier] = useState<DossierOut | null>(null);
   const [dossierError, setDossierError] = useState('');
+  const [comments, setComments] = useState<ReviewComment[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [r, a, an] = await Promise.all([
+      const [r, a, an, cm] = await Promise.all([
         api<ReviewReport>(`/review/reports/${id}`, { token }),
         api<AuditEntry[]>(`/review/reports/${id}/audit`, { token }),
         api<AssistantAnalysis>(`/review/reports/${id}/assistant`, { token }),
+        api<ReviewComment[]>(`/review/reports/${id}/comments`, { token }),
       ]);
       setReport(r);
       setAudit(a);
       setAnalysis(an);
+      setComments(cm);
       setError('');
     } catch (e) {
       setError(errorText(e));
@@ -140,6 +145,20 @@ export default function ReviewDetailScreen() {
       setDossier(await api<DossierOut>(`/review/reports/${id}/dossier`, { token }));
     } catch (e) {
       setDossierError(errorText(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const moderateComment = async (commentId: number, decision: 'approved' | 'rejected') => {
+    setBusy(`comment:${commentId}`);
+    setError('');
+    try {
+      await api(`/review/comments/${commentId}`, { method: 'POST', token, body: { decision } });
+      await load();
+      announce(t.decisionSaved);
+    } catch (e) {
+      setError(errorText(e));
     } finally {
       setBusy(null);
     }
@@ -276,6 +295,55 @@ export default function ReviewDetailScreen() {
         onConfirm={reject}
       />
       <DossierModal dossier={dossier} onClose={() => setDossier(null)} />
+
+      <Heading level={2}>{t.commentsReviewTitle}</Heading>
+      {comments.length === 0 && <Text style={styles.muted}>{t.commentsReviewEmpty}</Text>}
+      {comments.map((c) => (
+        <Card key={c.id}>
+          <View style={[styles.row, { gap: 6 }]}>
+            <View style={[styles.badge, { backgroundColor: colors.primarySoft, marginTop: 0 }]}>
+              <Text style={[styles.badgeText, { color: colors.primarySoftText }]}>
+                {COMMENT_TAG_LABELS[c.tag] ?? c.tag}
+              </Text>
+            </View>
+            <View style={[styles.badge, styles.badgeOutline, { marginTop: 0 }]}>
+              <Text style={styles.badgeText}>{COMMENT_STATUS_LABELS[c.moderation_status] ?? c.moderation_status}</Text>
+            </View>
+          </View>
+          <View style={{ marginTop: 6 }}>
+            <HighlightedText text={c.body} ranges={evidenceRanges(c.flags)} style={styles.body} />
+          </View>
+          <Text style={[styles.muted, { marginTop: 4 }]}>
+            {formatDateTime(c.created_at)} · {c.author_ref}
+          </Text>
+          {c.flags.length > 0 && (
+            <View style={[styles.row, { marginTop: 4 }]}>
+              {c.flags.map((f) => (
+                <FlagPill key={f.code} code={f.code} />
+              ))}
+            </View>
+          )}
+          {c.moderation_status !== 'approved' && (
+            <Button
+              title={t.commentApprove}
+              icon="check"
+              onPress={() => moderateComment(c.id, 'approved')}
+              loading={busy === `comment:${c.id}`}
+              disabled={!!busy}
+            />
+          )}
+          {c.moderation_status !== 'rejected' && (
+            <Button
+              title={t.commentReject}
+              icon="x"
+              variant="secondary"
+              onPress={() => moderateComment(c.id, 'rejected')}
+              loading={busy === `comment:${c.id}`}
+              disabled={!!busy}
+            />
+          )}
+        </Card>
+      ))}
 
       <Heading level={2}>{t.audit}</Heading>
       {audit.length === 0 && <Text style={styles.muted}>{t.auditEmpty}</Text>}

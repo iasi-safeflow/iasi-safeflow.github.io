@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from .comments import COMMENT_TAGS
 from .domain import CATEGORIES, IASI_BOUNDS, REJECTION_REASONS, STATUSES
 
 
@@ -112,3 +113,31 @@ class DuplicateDecision(BaseModel):
     # not_duplicate: the pair is not suggested again. revoke: undoes a link and reopens the newer report.
     action: Literal["link", "not_duplicate", "revoke"]
     notes: str = Field(default="", max_length=500)
+
+
+class CommentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tag: str
+    body: str = Field(default="", max_length=300)
+
+    @field_validator("tag")
+    @classmethod
+    def known_tag(cls, v: str) -> str:
+        if v not in COMMENT_TAGS:
+            raise ValueError("Etichetă de actualizare necunoscută.")
+        return v
+
+    @field_validator("body")
+    @classmethod
+    def check_body(cls, v: str) -> str:
+        v = v.strip()
+        if v and len(v) < 5:
+            raise ValueError("Comentariul trebuie să aibă cel puțin 5 caractere (sau lăsați gol).")
+        return v
+
+
+class CommentModeration(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["approved", "rejected"]

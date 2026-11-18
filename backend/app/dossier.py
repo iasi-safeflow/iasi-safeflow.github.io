@@ -64,6 +64,8 @@ def build_dossier(
     cluster: dict | None,
     importance: dict | None,
     audit: list[dict],
+    updates: dict[str, int] | None = None,
+    comments: list[dict] | None = None,
     generated_at: datetime,
 ) -> dict:
     public_id = report["public_id"]
@@ -101,6 +103,15 @@ def build_dossier(
         lines.append("- Sursă: Date simulate (demonstrație)")
 
     lines.extend(["", "2. DESCRIEREA OBSERVAȚIEI", report["description"]])
+    if updates and any(updates.values()):
+        lines.append(
+            f"Actualizări comunitate: Încă există ({updates.get('still_there', 0)}), "
+            f"S-a agravat ({updates.get('worse', 0)}), Pare rezolvat ({updates.get('looks_resolved', 0)})."
+        )
+    if comments:
+        lines.append("Comentarii aprobate:")
+        for c in comments[:10]:
+            lines.append(f"- [{c['created_at'][:10]}] {c['body']}")
 
     if cluster is not None:
         lines.extend([
@@ -151,6 +162,9 @@ def build_dossier(
             f"<p><strong>{e(imp_label)}</strong> ({int(importance['score'])}/100) — sugestie de prioritizare, nu o verificare.</p>"
         )
 
+    comments_html = ""
+    if comments:
+        comments_html = "<ul>" + "".join(f"<li>[{e(c['created_at'][:10])}] {e(c['body'])}</li>" for c in comments[:10]) + "</ul>"
     doc_html = f"""<!doctype html>
 <html lang="ro"><head><meta charset="utf-8">
 <title>Dosar sesizare {e(public_id)} — Iași SafeFlow</title>
@@ -180,6 +194,7 @@ td.k{{width:210px;font-weight:600;color:#4a4360}} .desc{{background:#f7f5fc;bord
 </table>
 <h2>2. Descrierea observației</h2>
 <div class="desc">{e(report['description'])}</div>
+{comments_html}
 {cluster_html}
 {imp_html}
 <h2>5. Jurnal de recenzie</h2>

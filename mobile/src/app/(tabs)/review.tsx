@@ -17,6 +17,7 @@ export default function ReviewQueueScreen() {
   const [items, setItems] = useState<ReviewReport[]>([]);
   const [status, setStatus] = useState<string | null>('submitted');
   const [heldOnly, setHeldOnly] = useState(false);
+  const [pendingCommentsOnly, setPendingCommentsOnly] = useState(false);
   const [sort, setSort] = useState<'newest' | 'oldest' | 'importance' | 'confirmations' | 'boosts'>('newest');
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -25,7 +26,12 @@ export default function ReviewQueueScreen() {
     if (!token || user?.role !== 'reviewer') return;
     setRefreshing(true);
     try {
-      const q = new URLSearchParams({ sort, ...(status ? { status } : {}), ...(heldOnly ? { visibility: 'held' } : {}) }).toString();
+      const q = new URLSearchParams({
+        sort,
+        ...(status ? { status } : {}),
+        ...(heldOnly ? { visibility: 'held' } : {}),
+        ...(pendingCommentsOnly ? { pending_comments: 'true' } : {}),
+      }).toString();
       setItems(await api<ReviewReport[]>(`/review/reports?${q}`, { token }));
       setError('');
     } catch (e) {
@@ -33,7 +39,7 @@ export default function ReviewQueueScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [token, user, status, sort, heldOnly]);
+  }, [token, user, status, sort, heldOnly, pendingCommentsOnly]);
 
   useFocusEffect(
     useCallback(() => {
@@ -67,6 +73,12 @@ export default function ReviewQueueScreen() {
       </View>
       <View style={styles.chips}>
         <Chip label={t.heldFilter} role="button" selected={heldOnly} onPress={() => setHeldOnly(!heldOnly)} />
+        <Chip
+          label={t.pendingCommentsFilter}
+          role="button"
+          selected={pendingCommentsOnly}
+          onPress={() => setPendingCommentsOnly(!pendingCommentsOnly)}
+        />
       </View>
       <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t.sortLabel}>
         <Chip label="Cele mai noi" selected={sort === 'newest'} onPress={() => setSort('newest')} />
@@ -97,6 +109,7 @@ export default function ReviewQueueScreen() {
               {t.created}: {formatDateTime(r.created_at)} · {r.reporter_ref}
               {r.confirmations_count > 0 ? ` · ${confirmLabel(r.confirmations_count)}` : ''}
               {r.boosts_count > 0 ? ` · ${boostLabel(r.boosts_count)}` : ''}
+              {r.pending_comments_count > 0 ? ` · ${r.pending_comments_count} comentarii noi` : ''}
             </Text>
             {r.assistant && (
               <View style={styles.row}>

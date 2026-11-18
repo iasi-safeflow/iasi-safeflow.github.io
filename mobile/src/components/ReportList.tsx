@@ -24,6 +24,7 @@ export function ReportList({
   origin,
   onToggleConfirm,
   onBoost,
+  onOpenComments,
   canBoost = false,
   confirmBusyId,
 }: {
@@ -33,6 +34,7 @@ export function ReportList({
   origin: Point | null;
   onToggleConfirm?: (publicId: string) => void;
   onBoost?: (publicId: string) => void;
+  onOpenComments?: (publicId: string) => void;
   canBoost?: boolean;
   confirmBusyId?: string | null;
 }) {
@@ -139,6 +141,14 @@ export function ReportList({
                 loading={confirmBusyId === r.public_id}
                 disabled={!!confirmBusyId}
                 onPress={() => onToggleConfirm(r.public_id)}
+              />
+            )}
+            {onOpenComments && (
+              <Button
+                title={`${t.updatesButton} (${r.approved_comments_count})`}
+                icon="message-square"
+                variant="secondary"
+                onPress={() => onOpenComments(r.public_id)}
               />
             )}
             {onBoost && canConfirm && !r.boosted_by_me && canBoost && (

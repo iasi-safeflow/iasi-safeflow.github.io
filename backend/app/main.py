@@ -20,6 +20,7 @@ def create_app(settings: Settings | None = None, geocoder: Geocoder | None = Non
     app.state.login_failures = {}
     app.state.geo_usage = {}
     app.state.confirm_usage = {}
+    app.state.comment_usage = {}
     app.state.geocoder = geocoder or Geocoder(settings)
     app.state.area_streets = AreaStreetWorker(app.state.geocoder, settings.database_path)
 

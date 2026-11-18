@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from ..assistant.config import ASSISTANT_VERSION
 from ..assistant.runner import latest_runs, nearby_open_ids, pair_decisions, recheck, run_out
 from ..clusters import CLUSTER_WINDOW_DAYS, build_clusters
+from ..comments import comment_counts, public_comment_out, review_comment_out, updates_summary
 from ..config import Settings, log
 from ..db import iso, utcnow
 from ..deps import get_db, get_settings, require_reviewer
@@ -17,8 +18,8 @@ from ..domain import PUBLIC_HIDDEN_STATUSES, PUBLISHING_STATUSES, TRANSITIONS, v
 from ..dossier import DOSSIER_STATUSES, build_dossier
 from ..errors import api_error
 from ..geocoding import area_street
-from ..points import award_for_status, boost_counts
-from ..schemas import DuplicateDecision, StatusChange
+from ..points import award_for_comment, award_for_status, boost_counts
+from ..schemas import CommentModeration, DuplicateDecision, StatusChange
 from .public import confirmation_counts
 
 router = APIRouter(prefix="/review", tags=["review"])
@@ -46,7 +47,12 @@ def assistant_summary(run: sqlite3.Row | None) -> dict | None:
 
 
 def review_report_out(
-    row: sqlite3.Row, secret: str, run: sqlite3.Row | None = None, confirmations_count: int = 0, boosts_count: int = 0
+    row: sqlite3.Row,
+    secret: str,
+    run: sqlite3.Row | None = None,
+    confirmations_count: int = 0,
+    boosts_count: int = 0,
+    pending_comments_count: int = 0,
 ) -> dict:
     return {
         "public_id": row["public_id"],
@@ -69,6 +75,7 @@ def review_report_out(
         "reporter_ref": reporter_ref(secret, row["reporter_id"]),
         "confirmations_count": confirmations_count,
         "boosts_count": boosts_count,
+        "pending_comments_count": pending_comments_count,
         "assistant": assistant_summary(run),
     }
 
@@ -105,6 +112,7 @@ def queue(
     status: str | None = Query(default=None),
     category: str | None = Query(default=None),
     visibility: str | None = Query(default=None, pattern="^(public|held)$"),
+    pending_comments: bool = Query(default=False),
     sort: str = Query(default="newest", pattern="^(newest|oldest|importance|confirmations|boosts)$"),
     _: sqlite3.Row = Depends(require_reviewer),
     settings: Settings = Depends(get_settings),
@@ -126,10 +134,20 @@ def queue(
     runs = latest_runs(db, ids)
     counts = confirmation_counts(db, ids)
     boosts = boost_counts(db, ids)
+    pend_comments = comment_counts(db, ids, "pending")
     items = [
-        review_report_out(r, settings.secret_key, runs.get(r["id"]), counts.get(r["id"], 0), boosts.get(r["id"], 0))
+        review_report_out(
+            r,
+            settings.secret_key,
+            runs.get(r["id"]),
+            counts.get(r["id"], 0),
+            boosts.get(r["id"], 0),
+            pend_comments.get(r["id"], 0),
+        )
         for r in rows
     ]
+    if pending_comments:
+        items = [i for i in items if i["pending_comments_count"] > 0]
     if sort == "importance":  # stable sort: newest first within the same score; unchecked reports last
         items.sort(key=lambda i: -(i["assistant"]["importance_score"] if i["assistant"] else -1))
     elif sort == "confirmations":
@@ -150,7 +168,15 @@ def report_detail(
     runs = latest_runs(db, [row["id"]])
     counts = confirmation_counts(db, [row["id"]])
     boosts = boost_counts(db, [row["id"]])
-    return review_report_out(row, settings.secret_key, runs.get(row["id"]), counts.get(row["id"], 0), boosts.get(row["id"], 0))
+    pend_comments = comment_counts(db, [row["id"]], "pending")
+    return review_report_out(
+        row,
+        settings.secret_key,
+        runs.get(row["id"]),
+        counts.get(row["id"], 0),
+        boosts.get(row["id"], 0),
+        pend_comments.get(row["id"], 0),
+    )
 
 
 def _refresh_checks(db: sqlite3.Connection, report_ids: list[int]) -> None:
@@ -434,6 +460,16 @@ def report_dossier(
     latest = latest_runs(db, [row["id"]]).get(row["id"])
     importance = run_out(latest)["importance"] if latest else None
     audit = [audit_out(r) for r in db.execute(_AUDIT_SELECT + " WHERE a.report_id = ? ORDER BY a.id", (row["id"],)).fetchall()]
+    updates = updates_summary(db, [row["id"]])[row["id"]]
+    approved_comments = [
+        public_comment_out(c)
+        for c in db.execute(
+            """SELECT * FROM report_comments
+               WHERE report_id = ? AND moderation_status = 'approved' AND body != ''
+               ORDER BY id DESC LIMIT 50""",
+            (row["id"],),
+        ).fetchall()
+    ]
 
     return build_dossier(
         dict(row),
@@ -444,5 +480,67 @@ def report_dossier(
         cluster=cluster,
         importance=importance,
         audit=audit,
+        updates=updates,
+        comments=approved_comments,
         generated_at=now,
+    )
+
+
+@router.get("/reports/{public_id}/comments")
+def review_comments(
+    public_id: str,
+    _: sqlite3.Row = Depends(require_reviewer),
+    settings: Settings = Depends(get_settings),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """All written comments on a report (pending first) with assistant flags for moderation."""
+    row = _get_report(db, public_id)
+    rows = db.execute(
+        """SELECT * FROM report_comments WHERE report_id = ? AND body != ''
+           ORDER BY CASE moderation_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, id DESC""",
+        (row["id"],),
+    ).fetchall()
+    return [
+        review_comment_out(
+            c,
+            reporter_ref(settings.secret_key, c["user_id"]) if c["user_id"] is not None else "anonim",
+        )
+        for c in rows
+    ]
+
+
+@router.post("/comments/{comment_id}")
+def moderate_comment(
+    comment_id: int,
+    body: CommentModeration,
+    reviewer: sqlite3.Row = Depends(require_reviewer),
+    settings: Settings = Depends(get_settings),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    comment = db.execute(
+        "SELECT c.*, r.public_id FROM report_comments c JOIN reports r ON r.id = c.report_id WHERE c.id = ?",
+        (comment_id,),
+    ).fetchone()
+    if comment is None or not comment["body"]:
+        raise api_error(404, "not_found", "Comentariul nu a fost găsit.")
+
+    now_iso = iso(utcnow())
+    action = "comment_approved" if body.decision == "approved" else "comment_rejected"
+    with db:
+        db.execute(
+            "UPDATE report_comments SET moderation_status = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?",
+            (body.decision, now_iso, reviewer["id"], comment_id),
+        )
+        db.execute(
+            """INSERT INTO review_actions (report_id, reviewer_id, action, from_status, to_status, reason, notes, created_at)
+               VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?)""",
+            (comment["report_id"], reviewer["id"], action, f"Comentariu #{comment_id}: {comment['body'][:120]}", now_iso),
+        )
+        if body.decision == "approved":
+            award_for_comment(db, comment, comment["public_id"], now_iso)
+
+    updated = db.execute("SELECT * FROM report_comments WHERE id = ?", (comment_id,)).fetchone()
+    return review_comment_out(
+        updated,
+        reporter_ref(settings.secret_key, updated["user_id"]) if updated["user_id"] is not None else "anonim",
     )
