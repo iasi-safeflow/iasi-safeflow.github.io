@@ -4,6 +4,7 @@ import { Text } from '@/components/AppText';
 import { PublicCluster, PublicReport } from '@/lib/api';
 import { describeFrom, Point, sortByDistance } from '@/lib/geo';
 import {
+  boostLabel,
   CATEGORY_LABELS,
   confirmLabel,
   observationsCountLabel,
@@ -22,6 +23,8 @@ export function ReportList({
   mode = 'points',
   origin,
   onToggleConfirm,
+  onBoost,
+  canBoost = false,
   confirmBusyId,
 }: {
   reports: PublicReport[];
@@ -29,6 +32,8 @@ export function ReportList({
   mode?: 'points' | 'clusters';
   origin: Point | null;
   onToggleConfirm?: (publicId: string) => void;
+  onBoost?: (publicId: string) => void;
+  canBoost?: boolean;
   confirmBusyId?: string | null;
 }) {
   const styles = useStyles();
@@ -114,6 +119,7 @@ export function ReportList({
                 <StatusBadge status={r.status} />
                 <Text style={[styles.muted, { marginTop: 4 }]}>
                   {timeAgo(r.observed_date)} · {confirmLabel(r.confirmations_count)}
+                  {r.boosts_count > 0 ? ` · ${boostLabel(r.boosts_count)}` : ''}
                 </Text>
               </View>
               <Text style={[styles.body, { fontFamily: styles.label.fontFamily, marginTop: 4 }]}>{category}</Text>
@@ -133,6 +139,16 @@ export function ReportList({
                 loading={confirmBusyId === r.public_id}
                 disabled={!!confirmBusyId}
                 onPress={() => onToggleConfirm(r.public_id)}
+              />
+            )}
+            {onBoost && canConfirm && !r.boosted_by_me && canBoost && (
+              <Button
+                title={t.boostButton}
+                icon="zap"
+                variant="secondary"
+                loading={confirmBusyId === `boost:${r.public_id}`}
+                disabled={!!confirmBusyId}
+                onPress={() => onBoost(r.public_id)}
               />
             )}
           </View>

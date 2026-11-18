@@ -87,6 +87,8 @@ export type PublicReport = {
   area_street: string | null; // street near the approximate location (OpenStreetMap), when known
   confirmations_count: number;
   confirmed_by_me: boolean;
+  boosts_count: number;
+  boosted_by_me: boolean;
 };
 
 export type PublicCluster = {
@@ -122,6 +124,7 @@ export type OwnReport = {
   public_visibility: 'public' | 'held';
   rejection_reason: string | null;
   confirmations_count: number;
+  boosts_count: number;
 };
 
 export type ReviewReport = OwnReport & {
@@ -130,7 +133,28 @@ export type ReviewReport = OwnReport & {
   source_type: string;
   reporter_ref: string;
   confirmations_count: number;
+  boosts_count: number;
   assistant: AssistantSummary | null;
+};
+
+export type PointsEvent = {
+  id: number;
+  kind: string;
+  delta: number;
+  description: string;
+  created_at: string;
+  report_id: string | null;
+};
+
+export type UserPoints = {
+  balance: number;
+  earned: number;
+  trusted: boolean;
+  trusted_threshold: number;
+  boost_cost: number;
+  weight: number;
+  level: string;
+  history: PointsEvent[];
 };
 
 export type AuditEntry = {

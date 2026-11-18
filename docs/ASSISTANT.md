@@ -71,7 +71,7 @@ points, including factors worth 0. All weights live in `backend/app/assistant/co
 |---|---|
 | Category | intersecție periculoasă 35, trecere de pietoni nesigură 35, near-miss 30, semnalizare lipsă 28, bandă blocată 25, iluminat slab 22, defect carosabil 20, incident din trecut 20, coadă recurentă 10, altele 8 |
 | Vulnerable road users mentioned | +15 if the description mentions pietoni, copii/copil, elevi, școală, grădiniță, trecere, bicicliști/bicicletă, cărucior, persoane în vârstă, vârstnici, bătrâni, nevăzători or scaun cu rotile (word starts, no diacritics needed) |
-| Corroboration | +10 for each nearby report that reaches at least "Posibil duplicat", plus each confirmed duplicate link and each 1-tap citizen confirmation ("Și eu am observat"), up to +30 |
+| Corroboration | +10 for each nearby report that reaches at least "Posibil duplicat", plus each confirmed duplicate link and each 1-tap citizen confirmation ("Și eu am observat"; confirmations from a Trusted Contributor at 100+ earned points count 2×), up to +30 |
 | Recency | `round(15 × max(0, 1 − days_since_observed / 30))`: 15 for a report observed today, 0 after 30 days |
 | Location precision | +5 for GPS with accuracy ≤ 30 m |
 | Description completeness | +5 for at least 60 characters and at least 10 words |

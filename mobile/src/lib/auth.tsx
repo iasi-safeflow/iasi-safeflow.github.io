@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
-import { api, ApiError, setUnauthorizedHandler, User } from './api';
+import { api, ApiError, setUnauthorizedHandler, User, UserPoints } from './api';
 import { clearToken, readToken, writeToken } from './tokenStore';
 
 const TOKEN_KEY = 'safeflow.session';
@@ -8,12 +8,14 @@ const TOKEN_KEY = 'safeflow.session';
 type AuthState = {
   user: User | null;
   token: string | null;
+  points: UserPoints | null;
   ready: boolean;
   // True after the server rejected the saved session (not after a normal logout), so screens can explain it.
   sessionEnded: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshPoints: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -21,8 +23,21 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [points, setPoints] = useState<UserPoints | null>(null);
   const [ready, setReady] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+
+  const loadPoints = useCallback(async (tkn: string) => {
+    try {
+      setPoints(await api<UserPoints>('/auth/points', { token: tkn }));
+    } catch {
+      // Non-critical if offline; points refresh next time.
+    }
+  }, []);
+
+  const refreshPoints = useCallback(async () => {
+    if (token) await loadPoints(token);
+  }, [token, loadPoints]);
 
   useEffect(() => {
     (async () => {
@@ -31,20 +46,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           setUser(await api<User>('/auth/me', { token: saved }));
           setToken(saved);
+          void loadPoints(saved);
         } catch (e) {
           if (e instanceof ApiError && e.status === 401) await clearToken(TOKEN_KEY);
         }
       }
       setReady(true);
     })();
-  }, []);
+  }, [loadPoints]);
 
-  const finish = useCallback(async (res: { token: string; user: User }) => {
-    await writeToken(TOKEN_KEY, res.token);
-    setToken(res.token);
-    setUser(res.user);
-    setSessionEnded(false);
-  }, []);
+  const finish = useCallback(
+    async (res: { token: string; user: User }) => {
+      await writeToken(TOKEN_KEY, res.token);
+      setToken(res.token);
+      setUser(res.user);
+      setSessionEnded(false);
+      void loadPoints(res.token);
+    },
+    [loadPoints],
+  );
 
   const login = useCallback(
     async (email: string, password: string) =>
@@ -60,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearToken(TOKEN_KEY);
     setToken(null);
     setUser(null);
+    setPoints(null);
   }, []);
 
   // A rejected session mid-use (account wiped on the server) signs the user out instead of leaving a dead login.
@@ -72,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ user, token, ready, sessionEnded, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, points, ready, sessionEnded, login, register, logout, refreshPoints }}>
       {children}
     </AuthContext.Provider>
   );

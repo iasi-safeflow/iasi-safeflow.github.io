@@ -48,7 +48,7 @@ def assess(db: sqlite3.Connection, report: dict, now: datetime) -> dict:
         1 for d in decisions.values() if d["relation_type"] == "duplicate_confirmed" and d["related_report_id"] == report_id
     )
     citizen_confirmations = (
-        db.execute("SELECT COUNT(*) FROM report_confirmations WHERE report_id = ?", (report_id,)).fetchone()[0]
+        db.execute("SELECT COALESCE(SUM(weight), 0) FROM report_confirmations WHERE report_id = ?", (report_id,)).fetchone()[0]
         if report_id is not None
         else 0
     )

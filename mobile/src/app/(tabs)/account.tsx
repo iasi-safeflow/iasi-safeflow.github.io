@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Text } from '@/components/AppText';
@@ -8,7 +9,7 @@ import { Button, Card, Chip, Heading, Label, SettingSwitch, useStyles } from '@/
 import { API_URL } from '@/lib/api';
 import { useA11y } from '@/lib/a11ySettings';
 import { useAuth } from '@/lib/auth';
-import { t } from '@/lib/i18n';
+import { formatDateTime, t } from '@/lib/i18n';
 import { ThemeMode, useTheme } from '@/lib/themeMode';
 
 const THEME_OPTIONS: [ThemeMode, string][] = [
@@ -18,18 +19,71 @@ const THEME_OPTIONS: [ThemeMode, string][] = [
 ];
 
 export default function AccountScreen() {
-  const { user, logout } = useAuth();
-  const { mode, setMode } = useTheme();
+  const { user, points, logout, refreshPoints } = useAuth();
+  const { mode, setMode, colors } = useTheme();
   const { prefs, update, feedback } = useA11y();
   const styles = useStyles();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) void refreshPoints();
+    }, [user, refreshPoints]),
+  );
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {user ? (
-        <Card>
-          <Text style={styles.body}>{user.email}</Text>
-          <Text style={styles.muted}>{user.role === 'reviewer' ? t.roleReviewer : t.roleReporter}</Text>
-          <Button title={t.logout} variant="secondary" icon="log-out" onPress={logout} />
-        </Card>
+        <>
+          <Card>
+            <Text style={styles.body}>{user.email}</Text>
+            <Text style={styles.muted}>{user.role === 'reviewer' ? t.roleReviewer : t.roleReporter}</Text>
+            <Button title={t.logout} variant="secondary" icon="log-out" onPress={logout} />
+          </Card>
+          {points && (
+            <Card>
+              <View style={[styles.row, { gap: 8, marginBottom: 6 }]}>
+                <Heading level={2} style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>
+                  {t.pointsTitle}
+                </Heading>
+                <View style={[styles.badge, { backgroundColor: colors.primarySoft, marginTop: 0 }]}>
+                  <Text style={[styles.badgeText, { color: colors.primarySoftText }]}>{points.level}</Text>
+                </View>
+              </View>
+              <Text style={styles.label}>{t.pointsBalance.replace('{n}', String(points.balance))}</Text>
+              <Text style={styles.muted}>{t.pointsEarned.replace('{n}', String(points.earned))}</Text>
+              <Text style={[styles.body, { marginTop: 6 }]}>
+                {points.trusted
+                  ? t.trustedActive
+                  : t.trustedProgress.replace('{n}', String(Math.max(0, points.trusted_threshold - points.earned)))}
+              </Text>
+              <Text style={[styles.muted, { marginTop: 6 }]}>{t.pointsHowBody}</Text>
+              <Text style={[styles.label, { marginTop: 10 }]}>{t.pointsHistoryTitle}</Text>
+              {points.history.length === 0 ? (
+                <Text style={styles.muted}>{t.pointsHistoryEmpty}</Text>
+              ) : (
+                points.history.slice(0, 8).map((ev) => (
+                  <View
+                    key={ev.id}
+                    style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingVertical: 3 }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: styles.label.fontFamily,
+                        color: ev.delta >= 0 ? colors.primarySoftText : colors.alertText,
+                        width: 46,
+                      }}
+                    >
+                      {ev.delta >= 0 ? `+${ev.delta}` : ev.delta}
+                    </Text>
+                    <Text style={[styles.muted, { flex: 1 }]}>
+                      {ev.description} · {formatDateTime(ev.created_at)}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </Card>
+          )}
+        </>
       ) : (
         <>
           <Button title={t.login} icon="log-in" onPress={() => router.push('/login')} />

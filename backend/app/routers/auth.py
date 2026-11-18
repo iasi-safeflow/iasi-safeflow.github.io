@@ -9,6 +9,7 @@ from ..config import Settings
 from ..db import iso, utcnow
 from ..deps import current_user, get_db, get_settings
 from ..errors import api_error
+from ..points import user_points, user_points_history
 from ..schemas import AuthOut, Credentials, UserOut
 from ..security import hash_password, issue_token, verify_password
 
@@ -58,6 +59,11 @@ def login(
 @router.get("/me", response_model=UserOut)
 def me(user: sqlite3.Row = Depends(current_user)):
     return _user_out(user)
+
+
+@router.get("/points")
+def my_points(user: sqlite3.Row = Depends(current_user), db: sqlite3.Connection = Depends(get_db)):
+    return {**user_points(db, user["id"]), "history": user_points_history(db, user["id"])}
 
 
 def seed_demo_reviewer(db: sqlite3.Connection, settings: Settings) -> None:

@@ -205,7 +205,21 @@ export const t = {
   checksCount: 'verificări',
   sortImportance: 'După importanță',
   sortConfirmations: 'După confirmări',
+  sortBoosts: 'După susținere',
   citizenConfirmations: 'Confirmări de la cetățeni',
+  priorityBoosts: 'Susțineri prioritare',
+  pointsTitle: 'Puncte civice',
+  pointsBalance: '{n} puncte disponibile',
+  pointsEarned: '{n} câștigate în total',
+  trustedActive: 'Contributor de încredere activ: confirmările dvs. (+1) contează 2×.',
+  trustedProgress: 'Mai aveți nevoie de {n} puncte validate pentru confirmări cu greutate 2×.',
+  pointsHowBody:
+    'Primiți puncte doar pentru contribuții validate de un recenzent (+15 raport validat, +5 descriere detaliată, +5 confirmare validată, +25 când ajunge pregătit pentru sesizare sau rezolvat). Puteți folosi 50 de puncte pentru a susține prioritar un raport pe hartă.',
+  pointsHistoryTitle: 'Istoric recent',
+  pointsHistoryEmpty: 'Nu aveți încă puncte validate.',
+  boostButton: 'Susține prioritar (-50 pct)',
+  boostedLabel: 'Susținut prioritar',
+  boostNeedPoints: 'Aveți {b} pct (necesar {c} pct pentru susținere prioritară).',
   dossierButton: 'Generează dosar de sesizare',
   dossierTitle: 'Dosar de sesizare',
   dossierLockedHint: 'Validați raportul pentru a putea genera dosarul de sesizare.',
@@ -422,6 +436,10 @@ export function nearbyLabel(n: number): string {
 
 export function confirmLabel(n: number): string {
   return roPlural(n, 'confirmare', 'confirmări');
+}
+
+export function boostLabel(n: number): string {
+  return roPlural(n, 'susținere prioritară', 'susțineri prioritare');
 }
 
 export function reportsCountLabel(n: number): string {

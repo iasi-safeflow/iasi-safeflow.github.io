@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth';
 import { getDeviceId } from '@/lib/deviceId';
 import { useHaptics } from '@/lib/feedback';
 import {
+  boostLabel,
   CATEGORY_LABELS,
   clustersChipLabel,
   confirmLabel,
@@ -33,7 +34,7 @@ import { fonts, radius, StatusKey, TOUCH } from '@/theme';
 
 // Public map: no login, privacy-safe fields only (rounded location, category, status, date).
 export default function PublicMapScreen() {
-  const { token } = useAuth();
+  const { user, token, points, refreshPoints } = useAuth();
   const { colors } = useTheme();
   const styles = useStyles();
   const tabSpace = useTabBarSpace();
@@ -120,6 +121,35 @@ export default function PublicMapScreen() {
       }
     },
     [token, category, haptic],
+  );
+
+  const boostReport = useCallback(
+    async (publicId: string) => {
+      if (!token) return;
+      setConfirmBusyId(`boost:${publicId}`);
+      setConfirmError('');
+      try {
+        const res = await api<{ public_id: string; boosts_count: number; boosted_by_me: boolean }>(
+          `/public/reports/${publicId}/boost`,
+          { method: 'POST', token },
+        );
+        setReports((prev) =>
+          prev.map((r) =>
+            r.public_id === res.public_id
+              ? { ...r, boosts_count: res.boosts_count, boosted_by_me: res.boosted_by_me }
+              : r,
+          ),
+        );
+        haptic('success');
+        announce(boostLabel(res.boosts_count));
+        void refreshPoints();
+      } catch (e) {
+        setConfirmError(errorText(e));
+      } finally {
+        setConfirmBusyId(null);
+      }
+    },
+    [token, haptic, refreshPoints],
   );
 
   const markers: MapMarker[] = useMemo(
@@ -244,6 +274,8 @@ export default function PublicMapScreen() {
               mode={mapMode}
               origin={position.point}
               onToggleConfirm={toggleConfirm}
+              onBoost={user ? boostReport : undefined}
+              canBoost={!!points && points.balance >= points.boost_cost}
               confirmBusyId={confirmBusyId}
             />
           )}
@@ -319,6 +351,7 @@ export default function PublicMapScreen() {
                 <Text style={[s.selectedTitle, { color: colors.text }]}>{CATEGORY_LABELS[selected.category] ?? selected.category}</Text>
                 <Text style={styles.muted}>
                   {sourceLabels(selected.is_simulated, selected.verification).join(' · ')} · {t.approxZone} · {selected.public_id}
+                  {selected.boosts_count > 0 ? ` · ${boostLabel(selected.boosts_count)}` : ''}
                 </Text>
                 {selected.area_street && (
                   <Text style={[styles.muted, { marginTop: 2 }]}>
@@ -336,6 +369,26 @@ export default function PublicMapScreen() {
                       disabled={!!confirmBusyId}
                       onPress={() => toggleConfirm(selected.public_id)}
                     />
+                    {user && points && (
+                      selected.boosted_by_me ? (
+                        <Text style={[styles.muted, { marginTop: 4 }]}>{t.boostedLabel}</Text>
+                      ) : points.balance >= points.boost_cost ? (
+                        <Button
+                          title={t.boostButton}
+                          icon="zap"
+                          variant="secondary"
+                          loading={confirmBusyId === `boost:${selected.public_id}`}
+                          disabled={!!confirmBusyId}
+                          onPress={() => boostReport(selected.public_id)}
+                        />
+                      ) : (
+                        <Text style={[styles.muted, { fontSize: 12, marginTop: 4 }]}>
+                          {t.boostNeedPoints
+                            .replace('{b}', String(points.balance))
+                            .replace('{c}', String(points.boost_cost))}
+                        </Text>
+                      )
+                    )}
                   </View>
                 )}
               </View>

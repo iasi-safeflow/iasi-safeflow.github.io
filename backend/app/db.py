@@ -129,6 +129,30 @@ MIGRATIONS: tuple[tuple[str, ...], ...] = (
            )""",
         "CREATE INDEX idx_report_confirmations_report ON report_confirmations (report_id)",
     ),
+    # 5: civic points ledger, priority boosts, and trusted confirmation weight
+    (
+        "ALTER TABLE report_confirmations ADD COLUMN weight INTEGER NOT NULL DEFAULT 1",
+        """CREATE TABLE point_events (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               user_id INTEGER NOT NULL REFERENCES users(id),
+               report_id INTEGER REFERENCES reports(id),
+               kind TEXT NOT NULL,
+               delta INTEGER NOT NULL,
+               description TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               UNIQUE (user_id, report_id, kind)
+           )""",
+        "CREATE INDEX idx_point_events_user ON point_events (user_id, id DESC)",
+        """CREATE TABLE report_boosts (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               report_id INTEGER NOT NULL REFERENCES reports(id),
+               user_id INTEGER NOT NULL REFERENCES users(id),
+               cost INTEGER NOT NULL,
+               created_at TEXT NOT NULL,
+               UNIQUE (report_id, user_id)
+           )""",
+        "CREATE INDEX idx_report_boosts_report ON report_boosts (report_id)",
+    ),
 )
 
 

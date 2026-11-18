@@ -17,6 +17,7 @@ from ..domain import PUBLIC_HIDDEN_STATUSES, PUBLISHING_STATUSES, TRANSITIONS, v
 from ..dossier import DOSSIER_STATUSES, build_dossier
 from ..errors import api_error
 from ..geocoding import area_street
+from ..points import award_for_status, boost_counts
 from ..schemas import DuplicateDecision, StatusChange
 from .public import confirmation_counts
 
@@ -45,7 +46,7 @@ def assistant_summary(run: sqlite3.Row | None) -> dict | None:
 
 
 def review_report_out(
-    row: sqlite3.Row, secret: str, run: sqlite3.Row | None = None, confirmations_count: int = 0
+    row: sqlite3.Row, secret: str, run: sqlite3.Row | None = None, confirmations_count: int = 0, boosts_count: int = 0
 ) -> dict:
     return {
         "public_id": row["public_id"],
@@ -67,6 +68,7 @@ def review_report_out(
         "is_simulated": bool(row["is_simulated"]),
         "reporter_ref": reporter_ref(secret, row["reporter_id"]),
         "confirmations_count": confirmations_count,
+        "boosts_count": boosts_count,
         "assistant": assistant_summary(run),
     }
 
@@ -103,7 +105,7 @@ def queue(
     status: str | None = Query(default=None),
     category: str | None = Query(default=None),
     visibility: str | None = Query(default=None, pattern="^(public|held)$"),
-    sort: str = Query(default="newest", pattern="^(newest|oldest|importance|confirmations)$"),
+    sort: str = Query(default="newest", pattern="^(newest|oldest|importance|confirmations|boosts)$"),
     _: sqlite3.Row = Depends(require_reviewer),
     settings: Settings = Depends(get_settings),
     db: sqlite3.Connection = Depends(get_db),
@@ -123,11 +125,17 @@ def queue(
     ids = [r["id"] for r in rows]
     runs = latest_runs(db, ids)
     counts = confirmation_counts(db, ids)
-    items = [review_report_out(r, settings.secret_key, runs.get(r["id"]), counts.get(r["id"], 0)) for r in rows]
+    boosts = boost_counts(db, ids)
+    items = [
+        review_report_out(r, settings.secret_key, runs.get(r["id"]), counts.get(r["id"], 0), boosts.get(r["id"], 0))
+        for r in rows
+    ]
     if sort == "importance":  # stable sort: newest first within the same score; unchecked reports last
         items.sort(key=lambda i: -(i["assistant"]["importance_score"] if i["assistant"] else -1))
     elif sort == "confirmations":
         items.sort(key=lambda i: -i["confirmations_count"])
+    elif sort == "boosts":
+        items.sort(key=lambda i: -i["boosts_count"])
     return items
 
 
@@ -141,7 +149,8 @@ def report_detail(
     row = _get_report(db, public_id)
     runs = latest_runs(db, [row["id"]])
     counts = confirmation_counts(db, [row["id"]])
-    return review_report_out(row, settings.secret_key, runs.get(row["id"]), counts.get(row["id"], 0))
+    boosts = boost_counts(db, [row["id"]])
+    return review_report_out(row, settings.secret_key, runs.get(row["id"]), counts.get(row["id"], 0), boosts.get(row["id"], 0))
 
 
 def _refresh_checks(db: sqlite3.Connection, report_ids: list[int]) -> None:
@@ -190,6 +199,7 @@ def change_status(
                VALUES (?, ?, 'status_change', ?, ?, ?, ?, ?)""",
             (row["id"], reviewer["id"], current, body.status, body.reason, body.notes.strip() or None, now),
         )
+        award_for_status(db, row, body.status, now)
     if "rejected" in (current, body.status):  # it leaves or joins the duplicate candidates of reports nearby
         _refresh_checks(db, [row["id"]])
     return report_detail(public_id, reviewer, settings, db)
@@ -400,6 +410,7 @@ def report_dossier(
     geocoder = request.app.state.geocoder
     street = area_street(geocoder, db, row["lat"], row["lon"])
     conf_count = confirmation_counts(db, [row["id"]]).get(row["id"], 0)
+    boosts = boost_counts(db, [row["id"]]).get(row["id"], 0)
     decisions = pair_decisions(db, row["id"])
     dup_ids = [
         db.execute("SELECT public_id FROM reports WHERE id = ?", (other_id,)).fetchone()[0]
@@ -428,6 +439,7 @@ def report_dossier(
         dict(row),
         street=street,
         confirmations_count=conf_count,
+        boosts_count=boosts,
         duplicate_ids=dup_ids,
         cluster=cluster,
         importance=importance,

@@ -13,6 +13,7 @@ import { announce } from '@/lib/a11y';
 import { api, AssistantAnalysis, AuditEntry, DossierOut, errorText, ReviewReport } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
+  boostLabel,
   CATEGORY_LABELS,
   confirmLabel,
   DECISION_LABELS,
@@ -214,6 +215,9 @@ export default function ReviewDetailScreen() {
         </Text>
         <Text style={styles.muted}>
           {t.citizenConfirmations}: {confirmLabel(report.confirmations_count)}
+        </Text>
+        <Text style={styles.muted}>
+          {t.priorityBoosts}: {boostLabel(report.boosts_count)}
         </Text>
         <ReadAloudButton
           text={joinSentences([
