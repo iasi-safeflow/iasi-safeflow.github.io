@@ -12,7 +12,8 @@ import { needsEmergencyStop } from '@/lib/safety';
 import { useTheme } from '@/lib/themeMode';
 import { radius } from '@/theme';
 import { EmergencyStop } from './EmergencyStop';
-import { Button, Card, Chip, ErrorText, Field, Heading, SourceBadge, useStyles } from './ui';
+import { Button, Card, ErrorText, Field, Heading, Icon, SourceBadge, useStyles } from './ui';
+import { fonts, TOUCH } from '@/theme';
 
 const TAG_ORDER: CommentTag[] = ['still_there', 'worse', 'looks_resolved'];
 
@@ -128,8 +129,18 @@ export function CommentsModal({
 
                 <View style={[styles.row, { gap: 6, marginBottom: 10 }]}>
                   {TAG_ORDER.map((k) => (
-                    <View key={k} style={[styles.badge, styles.badgeOutline]}>
-                      <Text style={styles.badgeText}>
+                    <View
+                      key={k}
+                      style={[
+                        styles.badge,
+                        {
+                          backgroundColor: colors.primarySoft,
+                          borderWidth: colors.lineWidth,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.badgeText, { color: colors.primarySoftText }]}>
                         {COMMENT_TAG_LABELS[k]}: {report.updates_summary?.[k] ?? 0}
                       </Text>
                     </View>
@@ -164,10 +175,47 @@ export function CommentsModal({
                 {canPost && (
                   <View style={{ marginTop: 6, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
                     <Text style={styles.label}>{t.commentAddTitle}</Text>
-                    <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t.commentAddTitle}>
-                      {TAG_ORDER.map((k) => (
-                        <Chip key={k} label={COMMENT_TAG_LABELS[k]} selected={tag === k} onPress={() => setTag(k)} />
-                      ))}
+                    <View
+                      style={[styles.chips, { gap: 8, marginBottom: 8 }]}
+                      accessibilityRole="radiogroup"
+                      accessibilityLabel={t.commentAddTitle}
+                    >
+                      {TAG_ORDER.map((k) => {
+                        const selected = tag === k;
+                        return (
+                          <Pressable
+                            key={k}
+                            accessibilityRole="radio"
+                            accessibilityLabel={COMMENT_TAG_LABELS[k]}
+                            aria-checked={selected}
+                            onPress={() => setTag(k)}
+                            style={({ pressed }) => ({
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                              minHeight: TOUCH,
+                              paddingHorizontal: 14,
+                              paddingVertical: 10,
+                              borderRadius: radius.button,
+                              backgroundColor: selected ? colors.primary : colors.primarySoft,
+                              borderWidth: colors.lineWidth,
+                              borderColor: selected ? colors.primary : colors.border,
+                              opacity: pressed ? 0.85 : 1,
+                            })}
+                          >
+                            {selected && <Icon name="check" size={16} color={colors.onPrimary} />}
+                            <Text
+                              style={{
+                                fontFamily: fonts.extrabold,
+                                fontSize: 14,
+                                color: selected ? colors.onPrimary : colors.primarySoftText,
+                              }}
+                            >
+                              {COMMENT_TAG_LABELS[k]}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                     </View>
                     <Field
                       label={t.commentAddTitle}

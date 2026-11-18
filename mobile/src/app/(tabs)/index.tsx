@@ -52,6 +52,7 @@ export default function PublicMapScreen() {
   const [confirmBusyId, setConfirmBusyId] = useState<string | null>(null);
   const [commentsForId, setCommentsForId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mapLocked, setMapLocked] = useState(false); // two fingers on the map: the page stops scrolling
   const { srMode } = useA11y();
   // The screen-reader mode opens on the list ("Probleme semnalate în apropiere"); the map stays one tap away.
   const [view, setView] = useState<'map' | 'list'>(srMode ? 'list' : 'map');
@@ -210,136 +211,147 @@ export default function PublicMapScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingBottom: tabSpace - 16 }]}>
-      {/* The 112 bar comes first here too, so screen readers read it before anything else. */}
+    <View style={styles.screen}>
+      {/* The 112 bar stays fixed at the top so screen readers and users always find it first. */}
       <EmergencyBanner />
 
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.kicker, { color: colors.primarySoftText }]}>{t.homeLabel}</Text>
-          <Text style={[s.greeting, { color: colors.text }]}>{t.greeting}</Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.tabAccount}
-          onPress={() => router.push('/account')}
-          style={({ pressed }) => [s.round, { backgroundColor: colors.primarySoft, opacity: pressed ? 0.85 : 1 }]}
-        >
-          <Icon name="user" size={22} color={colors.primarySoftText} />
-        </Pressable>
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${t.reportCtaTitle}, ${t.reportCtaSub}`}
-        onPress={() => router.push('/report')}
-        style={({ pressed }) => [s.cta, { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 }]}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: tabSpace }}
+        scrollEnabled={view === 'list' || !mapLocked}
+        keyboardShouldPersistTaps="handled"
+        focusable
       >
-        <View style={[s.ctaIcon, { backgroundColor: colors.onPrimary }]}>
-          <Icon name="plus" size={24} color={colors.primary} />
+        <View style={s.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.kicker, { color: colors.primarySoftText }]}>{t.homeLabel}</Text>
+            <Text style={[s.greeting, { color: colors.text }]}>{t.greeting}</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.tabAccount}
+            onPress={() => router.push('/account')}
+            style={({ pressed }) => [s.round, { backgroundColor: colors.primarySoft, opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Icon name="user" size={22} color={colors.primarySoftText} />
+          </Pressable>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.ctaTitle, { color: colors.onPrimary }]}>{t.reportCtaTitle}</Text>
-          <Text style={[s.ctaSub, { color: colors.onPrimary }]}>{t.reportCtaSub}</Text>
-        </View>
-        <Icon name="chevron-right" size={24} color={colors.onPrimary} />
-      </Pressable>
 
-      <View style={s.controlsRow}>
-        <View accessibilityRole="radiogroup" accessibilityLabel={t.modeGroupA11y} style={{ flexDirection: 'row', flex: 1 }}>
-          <Chip label={t.modePoints} selected={mapMode === 'points'} onPress={() => switchMode('points')} />
-          <Chip label={t.modeClusters} selected={mapMode === 'clusters'} onPress={() => switchMode('clusters')} />
-        </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={view === 'map' ? t.showList : t.showMap}
-          accessibilityHint={view === 'map' ? t.showListHint : undefined}
-          onPress={() => setView(view === 'map' ? 'list' : 'map')}
-          style={({ pressed }) => [
-            s.viewBtn,
-            { backgroundColor: colors.primarySoft, borderColor: colors.border, borderWidth: colors.lineWidth, opacity: pressed ? 0.85 : 1 },
-          ]}
+          accessibilityLabel={`${t.reportCtaTitle}, ${t.reportCtaSub}`}
+          onPress={() => router.push('/report')}
+          style={({ pressed }) => [s.cta, { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 }]}
         >
-          <Icon name={view === 'map' ? 'list' : 'map'} size={16} color={colors.primarySoftText} />
-          <Text style={[s.viewBtnText, { color: colors.primarySoftText }]}>{view === 'map' ? t.showList : t.showMap}</Text>
+          <View style={[s.ctaIcon, { backgroundColor: colors.onPrimary }]}>
+            <Icon name="plus" size={24} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.ctaTitle, { color: colors.onPrimary }]}>{t.reportCtaTitle}</Text>
+            <Text style={[s.ctaSub, { color: colors.onPrimary }]}>{t.reportCtaSub}</Text>
+          </View>
+          <Icon name="chevron-right" size={24} color={colors.onPrimary} />
         </Pressable>
-      </View>
 
-      {view === 'list' ? (
-        // focusable: on the web the scrolling list can also be reached and scrolled with the keyboard.
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }} focusable>
-          <Heading level={2} style={{ marginTop: 4 }}>
-            {mapMode === 'clusters' ? t.modeClusters : t.listTitle}
-          </Heading>
-          <ErrorText>{confirmError}</ErrorText>
-          {position.status === 'locating' && <Text style={styles.muted}>{t.listLocating}</Text>}
-          {(position.status === 'denied' || position.status === 'failed') && (
-            <Text style={[styles.muted, { marginBottom: 8 }]}>{t.listNoLocation}</Text>
-          )}
-          {loading ? (
-            <Text style={styles.muted}>{t.mapLoading}</Text>
-          ) : (
-            <ReportList
-              reports={reports}
-              clusters={clusters}
-              mode={mapMode}
-              origin={position.point}
-              onToggleConfirm={toggleConfirm}
-              onBoost={user ? boostReport : undefined}
-              onOpenComments={setCommentsForId}
-              canBoost={!!points && points.balance >= points.boost_cost}
-              confirmBusyId={confirmBusyId}
-            />
-          )}
-        </ScrollView>
-      ) : (
-        <>
-          <StreetSearch
-            token={token}
-            onSelect={(r) => {
-              setSelectedId(null);
-              setSelectedClusterId(null);
-              setMapCenter((prev) => ({ lat: r.lat, lon: r.lon, zoom: 16, seq: (prev?.seq ?? 0) + 1 }));
-              announce(t.streetCentered.replace('{label}', r.label));
-            }}
-            style={{ marginHorizontal: 16, marginBottom: 8 }}
-          />
-          <View
-            style={[s.mapCard, { borderColor: colors.border, backgroundColor: colors.map.land }]}
-            // Phone app: the map is one item with a summary (its markers can't be explored by touch). Web: a labelled
-            // region, so Leaflet's own keyboard controls stay reachable inside it.
-            accessible={Platform.OS !== 'web'}
-            role={Platform.OS === 'web' ? 'region' : undefined}
-            accessibilityLabel={t.mapA11y.replace('{n}', String(reports.length))}
+        <View style={s.controlsRow}>
+          <View accessibilityRole="radiogroup" accessibilityLabel={t.modeGroupA11y} style={{ flexDirection: 'row', flex: 1 }}>
+            <Chip label={t.modePoints} selected={mapMode === 'points'} onPress={() => switchMode('points')} />
+            <Chip label={t.modeClusters} selected={mapMode === 'clusters'} onPress={() => switchMode('clusters')} />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={view === 'map' ? t.showList : t.showMap}
+            accessibilityHint={view === 'map' ? t.showListHint : undefined}
+            onPress={() => setView(view === 'map' ? 'list' : 'map')}
+            style={({ pressed }) => [
+              s.viewBtn,
+              { backgroundColor: colors.primarySoft, borderColor: colors.border, borderWidth: colors.lineWidth, opacity: pressed ? 0.85 : 1 },
+            ]}
           >
-            <LeafletMap
-              markers={markers}
-              selectedId={selectedId}
-              onSelect={(id) => {
-                setSelectedId(id);
-                setConfirmError('');
+            <Icon name={view === 'map' ? 'list' : 'map'} size={16} color={colors.primarySoftText} />
+            <Text style={[s.viewBtnText, { color: colors.primarySoftText }]}>{view === 'map' ? t.showList : t.showMap}</Text>
+          </Pressable>
+        </View>
+
+        {view === 'list' ? (
+          <View style={{ paddingHorizontal: 16 }}>
+            <Heading level={2} style={{ marginTop: 4 }}>
+              {mapMode === 'clusters' ? t.modeClusters : t.listTitle}
+            </Heading>
+            <ErrorText>{confirmError}</ErrorText>
+            {position.status === 'locating' && <Text style={styles.muted}>{t.listLocating}</Text>}
+            {(position.status === 'denied' || position.status === 'failed') && (
+              <Text style={[styles.muted, { marginBottom: 8 }]}>{t.listNoLocation}</Text>
+            )}
+            {loading ? (
+              <Text style={styles.muted}>{t.mapLoading}</Text>
+            ) : (
+              <ReportList
+                reports={reports}
+                clusters={clusters}
+                mode={mapMode}
+                origin={position.point}
+                onToggleConfirm={toggleConfirm}
+                onBoost={user ? boostReport : undefined}
+                onOpenComments={setCommentsForId}
+                canBoost={!!points && points.balance >= points.boost_cost}
+                confirmBusyId={confirmBusyId}
+              />
+            )}
+          </View>
+        ) : (
+          <>
+            <StreetSearch
+              token={token}
+              onSelect={(r) => {
+                setSelectedId(null);
+                setSelectedClusterId(null);
+                setMapCenter((prev) => ({ lat: r.lat, lon: r.lon, zoom: 16, seq: (prev?.seq ?? 0) + 1 }));
+                announce(t.streetCentered.replace('{label}', r.label));
               }}
-              clusters={mapClusters}
-              selectedClusterId={selectedClusterId}
-              onSelectCluster={setSelectedClusterId}
-              center={mapCenter}
-              style={{ flex: 1 }}
+              style={{ marginHorizontal: 16, marginBottom: 8 }}
             />
-            <View pointerEvents="none" style={[s.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              {loading ? (
-                <>
-                  <ActivityIndicator color={colors.primary} />
-                  <Text style={[s.chipText, { color: colors.text, flex: 1 }]}>{t.mapLoading}</Text>
-                </>
-              ) : (
-                <>
-                  <Icon name={mapMode === 'clusters' ? 'layers' : 'map-pin'} size={16} color={colors.primary} />
-                  <Text style={[s.chipText, { color: colors.text }]}>
-                    {mapMode === 'clusters' ? clustersChipLabel(clusters.length) : nearbyLabel(reports.length)}
-                  </Text>
-                </>
-              )}
+            <View
+              style={[s.mapCard, { borderColor: colors.border, backgroundColor: colors.map.land }]}
+              // Phone app: the map is one item with a summary (its markers can't be explored by touch). Web: a labelled
+              // region, so Leaflet's own keyboard controls stay reachable inside it.
+              accessible={Platform.OS !== 'web'}
+              role={Platform.OS === 'web' ? 'region' : undefined}
+              accessibilityLabel={t.mapA11y.replace('{n}', String(reports.length))}
+            >
+              <LeafletMap
+                markers={markers}
+                selectedId={selectedId}
+                onSelect={(id) => {
+                  setSelectedId(id);
+                  setConfirmError('');
+                }}
+                clusters={mapClusters}
+                selectedClusterId={selectedClusterId}
+                onSelectCluster={setSelectedClusterId}
+                cooperativeGestures
+                onGestureLock={setMapLocked}
+                center={mapCenter}
+                style={{ flex: 1 }}
+              />
+              <View pointerEvents="none" style={[s.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {loading ? (
+                  <>
+                    <ActivityIndicator color={colors.primary} />
+                    <Text style={[s.chipText, { color: colors.text, flex: 1 }]}>{t.mapLoading}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Icon name={mapMode === 'clusters' ? 'layers' : 'map-pin'} size={16} color={colors.primary} />
+                    <Text style={[s.chipText, { color: colors.text }]}>
+                      {mapMode === 'clusters' ? clustersChipLabel(clusters.length) : nearbyLabel(reports.length)}
+                    </Text>
+                  </>
+                )}
+              </View>
             </View>
+
+            {/* Selected report or cluster card renders cleanly below the map so details never overlap or clip. */}
             {selected && (
               <View style={[s.selected, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.row, { gap: 8 }]}>
@@ -381,12 +393,12 @@ export default function PublicMapScreen() {
                       disabled={!!confirmBusyId}
                       onPress={() => toggleConfirm(selected.public_id)}
                     />
-                      <Button
-                        title={`${t.updatesButton} (${selected.approved_comments_count})`}
-                        icon="message-square"
-                        variant="secondary"
-                        onPress={() => setCommentsForId(selected.public_id)}
-                      />
+                    <Button
+                      title={`${t.updatesButton} (${selected.approved_comments_count})`}
+                      icon="message-square"
+                      variant="secondary"
+                      onPress={() => setCommentsForId(selected.public_id)}
+                    />
                     {user && points && (
                       selected.boosted_by_me ? (
                         <Text style={[styles.muted, { marginTop: 4 }]}>{t.boostedLabel}</Text>
@@ -411,6 +423,7 @@ export default function PublicMapScreen() {
                 )}
               </View>
             )}
+
             {selectedCluster && (
               <View style={[s.selected, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.row, { gap: 8 }]}>
@@ -457,42 +470,43 @@ export default function PublicMapScreen() {
                 </View>
               </View>
             )}
-          </View>
-        </>
-      )}
+          </>
+        )}
 
-      <View style={{ paddingHorizontal: 16 }}>
-        <ErrorText>{error}</ErrorText>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: 10 }}
-          accessibilityRole="radiogroup"
-          accessibilityLabel={t.categoryFilter}
-        >
-          <Chip label={t.all} selected={!category} onPress={() => setCategory(null)} />
-          {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-            <Chip key={key} label={label} selected={category === key} onPress={() => setCategory(key)} />
-          ))}
-        </ScrollView>
-        <View style={[styles.row, { columnGap: 12 }]}>
-          {Object.entries(STATUS_LABELS)
-            .filter(([k]) => k !== 'rejected')
-            .map(([k, label]) => (
-              <View key={k} style={[styles.row, { gap: 5 }]}>
-                <View
-                  style={[s.dot, { backgroundColor: colors.status[k as StatusKey] }]}
-                  importantForAccessibility="no"
-                  accessibilityElementsHidden
-                />
-                <Text style={[styles.muted, { fontSize: 12 }]}>
-                  {colors.highContrast ? `${STATUS_LETTERS[k]} = ${label}` : label}
-                </Text>
-              </View>
+        <View style={{ paddingHorizontal: 16 }}>
+          <ErrorText>{error}</ErrorText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 10 }}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={t.categoryFilter}
+          >
+            <Chip label={t.all} selected={!category} onPress={() => setCategory(null)} />
+            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              <Chip key={key} label={label} selected={category === key} onPress={() => setCategory(key)} />
             ))}
+          </ScrollView>
+          <View style={[styles.row, { columnGap: 12 }]}>
+            {Object.entries(STATUS_LABELS)
+              .filter(([k]) => k !== 'rejected')
+              .map(([k, label]) => (
+                <View key={k} style={[styles.row, { gap: 5 }]}>
+                  <View
+                    style={[s.dot, { backgroundColor: colors.status[k as StatusKey] }]}
+                    importantForAccessibility="no"
+                    accessibilityElementsHidden
+                  />
+                  <Text style={[styles.muted, { fontSize: 12 }]}>
+                    {colors.highContrast ? `${STATUS_LETTERS[k]} = ${label}` : label}
+                  </Text>
+                </View>
+              ))}
+          </View>
+          <Text style={[styles.muted, { fontSize: 12, marginTop: 2 }]}>{t.mapDisclaimer}</Text>
         </View>
-        <Text style={[styles.muted, { fontSize: 12, marginTop: 2 }]}>{t.mapDisclaimer}</Text>
-      </View>
+      </ScrollView>
+
       <CommentsModal
         report={commentsReport}
         onClose={() => setCommentsForId(null)}
@@ -533,7 +547,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   viewBtnText: { fontFamily: fonts.extrabold, fontSize: 14 },
-  mapCard: { flex: 1, minHeight: 180, marginHorizontal: 16, borderRadius: 26, borderWidth: 1, overflow: 'hidden' },
+  mapCard: { height: 280, marginHorizontal: 16, borderRadius: 26, borderWidth: 1, overflow: 'hidden' },
   chip: {
     position: 'absolute',
     top: 12,
@@ -548,7 +562,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
   },
   chipText: { fontFamily: fonts.extrabold, fontSize: 13 },
-  selected: { position: 'absolute', left: 10, right: 10, bottom: 10, borderRadius: 22, borderWidth: 1, padding: 14 },
+  selected: { marginHorizontal: 16, marginTop: 10, borderRadius: radius.card, borderWidth: 1, padding: 14 },
   selectedTitle: { fontFamily: fonts.extrabold, fontSize: 17, lineHeight: 23, marginTop: 6, marginBottom: 2 },
   close: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center', marginRight: -10, marginTop: -6 },
   dot: { width: 10, height: 10, borderRadius: 5 },
