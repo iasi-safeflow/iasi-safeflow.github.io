@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Iași SafeFlow — Pitch Echipa Synaptik</title>
+<style>
+  :root {
+    --bg: #0e0b16;
+    --surface: #181326;
+    --surface-2: #221b36;
+    --border: rgba(196, 165, 255, 0.16);
+    --text: #f5f2ff;
+    --muted: #a69bc2;
+    --accent: #c4a5ff;
+    --accent-strong: #8b5cf6;
+    --red: #e03e3e;
+    --red-bg: rgba(224, 62, 62, 0.16);
+    --green: #34d399;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+    --hud-h: 44px;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    background: radial-gradient(circle at 80% 10%, rgba(139, 92, 246, 0.14), transparent 45%),
+                radial-gradient(circle at 15% 90%, rgba(52, 211, 153, 0.08), transparent 40%),
+                var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+    user-select: none;
+  }
+
+  /* Progress bar */
+  .progress-track {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    z-index: 60;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 11%;
+    background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+    transition: width 0.35s ease;
+  }
+
+  /* Minimal top HUD */
+  .hud {
+    position: fixed;
+    top: 3px;
+    left: 0;
+    right: 0;
+    height: var(--hud-h);
+    padding: 0 clamp(10px, 2.5vw, 24px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 50;
+    background: linear-gradient(180deg, rgba(14, 11, 22, 0.92), rgba(14, 11, 22, 0));
+  }
+  .hud-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hud-btn {
+    background: rgba(24, 19, 38, 0.85);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 999px;
+    height: 30px;
+    padding: 0 11px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .hud-btn:hover {
+    background: var(--surface-2);
+    border-color: var(--accent);
+  }
+  .hud-counter {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer-running {
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .timer-warn {
+    border-color: var(--red);
+    color: #ff7b7b;
+  }
+
+  /* Main clickable stage */
+  #stage {
+    position: fixed;
+    top: calc(var(--hud-h) + 3px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    padding: clamp(10px, 2.5vh, 28px) clamp(14px, 4vw, 56px) clamp(18px, 3vh, 32px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  /* Typography */
+  .kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: clamp(10px, 1.3vw, 13px);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: clamp(6px, 1.2vh, 12px);
+  }
+  h1 {
+    font-size: clamp(28px, 5.4vw, 62px);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin-bottom: clamp(10px, 1.8vh, 18px);
+  }
+  h2 {
+    font-size: clamp(22px, 3.6vw, 42px);
+    line-height: 1.14;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: clamp(10px, 2vh, 22px);
+  }
+  .lead {
+    font-size: clamp(14px, 2vw, 22px);
+    line-height: 1.45;
+    color: var(--muted);
+    max-width: 720px;
+  }
+  .accent-text { color: var(--accent); }
+  .green-text { color: var(--green); }
+  .red-text { color: #ff6b6b; }
+  .amber-text { color: var(--amber); }
+
+  /* Click-by-click fragments */
+  .frag {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.26s ease, transform 0.26s ease;
+  }
+  .frag.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Grids & Cards */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(8px, 1.8vw, 18px);
+    width: 100%;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1.08fr 0.92fr;
+    gap: clamp(12px, 2.5vw, 28px);
+    align-items: center;
+    width: 100%;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: clamp(11px, 2vh, 20px) clamp(12px, 1.8vw, 20px);
+  }
+  .card h3 {
+    font-size: clamp(14px, 1.8vw, 19px);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+  .card p {
+    font-size: clamp(12px, 1.45vw, 15px);
+    line-height: 1.42;
+    color: var(--muted);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: clamp(11px, 1.2vw, 13px);
+    font-weight: 700;
+    background: rgba(196, 165, 255, 0.14);
+    color: var(--accent);
+    border: 1px solid rgba(196, 165, 255, 0.25);
+  }
+  .badge-red {
+    background: var(--red-bg);
+    color: #ff8080;
+    border-color: rgba(224, 62, 62, 0.4);
+  }
+  .badge-green {
+    background: rgba(52, 211, 153, 0.14);
+    color: var(--green);
+    border-color: rgba(52, 211, 153, 0.35);
+  }
+
+  .hook-box {
+    margin-top: clamp(14px, 2.5vh, 28px);
+    padding: clamp(12px, 2vh, 18px) clamp(14px, 2vw, 22px);
+    border-left: 4px solid var(--accent);
+    background: rgba(196, 165, 255, 0.08);
+    border-radius: 0 14px 14px 0;
+    font-size: clamp(14px, 1.9vw, 20px);
+    line-height: 1.4;
+    font-style: italic;
+    max-width: 780px;
+  }
+
+  /* List items */
+  .point-list {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1.5vh, 14px);
+  }
+  .point-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: clamp(9px, 1.4vh, 14px) clamp(11px, 1.5vw, 16px);
+  }
+  .point-dot {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: rgba(196, 165, 255, 0.16);
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .point-item strong {
+    display: block;
+    font-size: clamp(13px, 1.55vw, 16px);
+    margin-bottom: 2px;
+  }
+  .point-item span {
+    display: block;
+    font-size: clamp(11.5px, 1.3vw, 14px);
+    color: var(--muted);
+    line-height: 1.35;
+  }
+
+  /* Phone Mockup */
+  .phone-mock {
+    background: #120e1d;
+    border: 2px solid rgba(196, 165, 255, 0.28);
+    border-radius: 22px;
+    padding: clamp(10px, 1.6vh, 14px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    max-width: 340px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .mock-112 {
+    background: rgba(224, 62, 62, 0.2);
+    border: 1px solid rgba(224, 62, 62, 0.45);
+    border-radius: 12px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 11px;
+  }
+  .mock-112-btn {
+    background: var(--red);
+    color: #fff;
+    font-weight: 700;
+    padding: 5px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .mock-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+  }
+  .mock-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .mock-pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .mock-pill.danger {
+    background: rgba(224, 62, 62, 0.22);
+    color: #ff8585;
+    border-color: rgba(224, 62, 62, 0.4);
+  }
+  .mock-pill.primary {
+    background: var(--accent);
+    color: #150f24;
+    border-color: var(--accent);
+  }
+
+  /* Mini map inside phone mockup */
+  .mini-map {
+    position: relative;
+    height: clamp(105px, 18vh, 145px);
+    border-radius: 12px;
+    background:
+      linear-gradient(125deg, transparent 42%, rgba(251, 191, 36, 0.18) 43%, rgba(251, 191, 36, 0.18) 45%, transparent 46%),
+      linear-gradient(35deg, transparent 54%, rgba(196, 165, 255, 0.16) 55%, rgba(196, 165, 255, 0.16) 57%, transparent 58%),
+      radial-gradient(circle at 30% 45%, rgba(139, 92, 246, 0.22), transparent 50%),
+      #1b2220;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .map-label {
+    position: absolute;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 600;
+  }
+  .cluster-dot {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #161026;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px rgba(196, 165, 255, 0.28);
+  }
+  .status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .s-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+
+  /* Slide 4: 5-Scene Animation Stage */
+  .anim-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1.4vh, 14px);
+  }
+  .anim-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .scene-steps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .scene-dot {
+    width: 24px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    transition: all 0.25s;
+  }
+  .scene-dot.active {
+    width: 38px;
+    background: var(--accent);
+  }
+  .scene-dot.done {
+    background: var(--green);
+  }
+  .svg-stage {
+    width: 100%;
+    max-height: clamp(210px, 46vh, 390px);
+    aspect-ratio: 16 / 8.5;
+    background: #130f21;
+    border: 1px solid rgba(196, 165, 255, 0.24);
+    border-radius: 18px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  }
+  .svg-stage svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .anim-caption {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: clamp(9px, 1.5vh, 14px) clamp(12px, 2vw, 18px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .anim-caption-title {
+    font-size: clamp(13px, 1.7vw, 18px);
+    font-weight: 700;
+    color: var(--text);
+  }
+  .anim-caption-sub {
+    font-size: clamp(11.5px, 1.35vw, 14px);
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* SVG Scene Animations */
+  .scene-g { display: none; }
+  .scene-g.active { display: block; animation: fadeInScene 0.35s ease; }
+
+  @keyframes fadeInScene {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pulseRing {
+    0% { transform: scale(0.8); opacity: 0.9; }
+    100% { transform: scale(1.7); opacity: 0; }
+  }
+  @keyframes honkShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+  }
+  @keyframes waveUp {
+    0% { opacity: 0; transform: translateY(8px) scale(0.9); }
+    50% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-18px) scale(1.15); }
+  }
+  @keyframes sirenRed {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0.15; }
+  }
+  @keyframes sirenBlue {
+    0%, 49% { opacity: 0.15; }
+    50%, 100% { opacity: 1; }
+  }
+  @keyframes driveClearRight {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(170px); }
+  }
+  @keyframes driveClearDown {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(110px); }
+  }
+  @keyframes floatPoints {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-9px); }
+  }
+  @keyframes popBadge {
+    0% { transform: scale(0.75); opacity: 0; }
+    65% { transform: scale(1.06); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .anim-honk { animation: honkShake 0.45s infinite; transform-box: fill-box; transform-origin: center; }
+  .anim-pulse { animation: pulseRing 1.4s infinite; transform-box: fill-box; transform-origin: center; }
+  .anim-wave-1 { animation: waveUp 1.5s infinite; transform-box: fill-box; transform-origin: center; }
+  .anim-wave-2 { animation: waveUp 1.5s 0.45s infinite; transform-box: fill-box; transform-origin: center; }
+  .anim-siren-r { animation: sirenRed 0.45s infinite; }
+  .anim-siren-b { animation: sirenBlue 0.45s infinite; }
+  .anim-car-go-r { animation: driveClearRight 2.4s ease-in-out infinite; }
+  .anim-car-go-d { animation: driveClearDown 2.4s ease-in-out infinite; }
+  .anim-float { animation: floatPoints 1.8s ease-in-out infinite; }
+  .anim-pop { animation: popBadge 0.55s ease forwards; transform-box: fill-box; transform-origin: center; }
+
+  /* AI Pipeline */
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: clamp(8px, 1.4vw, 14px);
+    width: 100%;
+    margin-top: clamp(6px, 1vh, 12px);
+  }
+  .pipe-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: clamp(10px, 1.8vh, 18px) clamp(10px, 1.4vw, 16px);
+    position: relative;
+  }
+  .pipe-num {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 6px;
+    letter-spacing: 0.08em;
+  }
+  .pipe-step h3 {
+    font-size: clamp(13px, 1.55vw, 17px);
+    margin-bottom: 5px;
+  }
+  .pipe-step p {
+    font-size: clamp(11px, 1.25vw, 13.5px);
+    color: var(--muted);
+    line-height: 1.38;
+  }
+
+  /* End slide */
+  .cta-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: clamp(14px, 2.5vh, 26px);
+    padding: 12px 20px;
+    border-radius: 16px;
+    background: var(--surface);
+    border: 1px solid rgba(196, 165, 255, 0.35);
+    font-size: clamp(14px, 2vw, 21px);
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* Tap hint */
+  .tap-hint {
+    position: fixed;
+    bottom: 8px;
+    right: 14px;
+    font-size: 11px;
+    color: rgba(166, 155, 194, 0.55);
+    pointer-events: none;
+    z-index: 40;
+  }
+
+  /* Presenter Notes Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 6, 14, 0.78);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-box {
+    background: var(--surface);
+    border: 1px solid rgba(196, 165, 255, 0.3);
+    border-radius: 18px;
+    max-width: 560px;
+    width: 100%;
+    padding: 18px 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  }
+  .modal-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .modal-body {
+    font-size: 14px;
+    line-height: 1.58;
+    color: #e4ddf5;
+  }
+
+  /* Mobile Portrait Responsiveness (zero vertical scroll) */
+  @media (max-width: 768px) {
+    .grid-3 {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .grid-2 {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .pipeline {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .phone-mock {
+      max-width: 100%;
+      padding: 8px 10px;
+      border-radius: 16px;
+    }
+    .hide-mobile { display: none !important; }
+    .svg-stage {
+      aspect-ratio: 16 / 10;
+      max-height: 40vh;
+    }
+    .point-item {
+      padding: 8px 10px;
+    }
+    .card {
+      padding: 10px 12px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<header class="hud no-advance">
+  <div class="hud-group">
+    <button class="hud-btn" id="btnPrev" title="Înapoi (←)">← Înapoi</button>
+    <span class="hud-counter" id="slideCounter">01 / 09</span>
+  </div>
+  <div class="hud-group">
+    <button class="hud-btn" id="btnTimer" title="Click: Start/Pauză • Dublu-click: Reset">⏱ 05:00</button>
+    <button class="hud-btn" id="btnNotes">Note</button>
+    <button class="hud-btn hide-mobile" id="btnFull" title="Ecran complet">⛶</button>
+  </div>
+</header>
+
+<main id="stage">
+
+  <!-- SLIDE 1: TITLU & HOOK -->
+  <section class="slide active" data-note="0:00 – 0:25 | Deschide direct cu întrebarea către juriu. Fă o pauză de 2 secunde, apoi prezintă Iași SafeFlow ca puntea rapidă dintre cetățean și siguranța rutieră din Iași.">
+    <div class="kicker">Echipa Synaptik • Prototip v0.4.1 • Iași</div>
+    <h1>Iași <span class="accent-text">SafeFlow</span></h1>
+    <p class="lead">De la o problemă rutieră observată pe stradă la o intersecție liberă, în câteva minute.</p>
+    <div class="hook-box frag">
+      „Câți dintre voi ați trecut săptămâna asta pe lângă o intersecție blocată sau o groapă periculoasă și nu ați știut cui să raportați?”
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;" class="frag">
+      <span class="badge">Web App + Android APK</span>
+      <span class="badge badge-green">AI + Validare Umană</span>
+      <span class="badge badge-red">Triaj Siguranță 112</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 2: PROBLEMA -->
+  <section class="slide" data-note="0:25 – 0:55 | Explică de ce sistemul actual nu funcționează pentru probleme non-urgente: oamenii ori blochează 112, ori renunță din cauza birocrației și a lipsei de feedback.">
+    <div class="kicker">01 • Problema</div>
+    <h2>Între <span class="red-text">112</span> și „lasă că trece” există un gol.</h2>
+    <div class="grid-3">
+      <div class="card frag">
+        <span class="badge badge-red" style="margin-bottom:8px;">112 blocat</span>
+        <h3>Non-urgențele încarcă linia</h3>
+        <p>O groapă periculoasă sau o mașină care blochează banda nu sunt urgențe vitale, dar generează riscuri reale.</p>
+      </div>
+      <div class="card frag">
+        <span class="badge" style="margin-bottom:8px;">Birocrație</span>
+        <h3>Sesizări lente și complicate</h3>
+        <p>Formulare lungi, e-mailuri fără răspuns și adrese greu de identificat descurajează raportarea rapidă.</p>
+      </div>
+      <div class="card frag">
+        <span class="badge badge-green" style="margin-bottom:8px;">Zero feedback</span>
+        <h3>Cetățeanul nu știe ce s-a întâmplat</h3>
+        <p>Fără status clar și fără recunoaștere, oamenii renunță să mai semnaleze problemele din oraș.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 3: SOLUȚIA + TRIAJ 112 -->
+  <section class="slide" data-note="0:55 – 1:30 | Prezintă fluxul real din aplicație: raportare în sub un minut, dar întotdeauna precedată de filtrul obligatoriu de siguranță 112.">
+    <div class="kicker">02 • Soluția</div>
+    <h2>Raportare civică în <span class="accent-text">~1 minut</span>, cu triaj de siguranță.</h2>
+    <div class="grid-2">
+      <div class="point-list">
+        <div class="point-item frag">
+          <div class="point-dot">1</div>
+          <div>
+            <strong>Filtru obligatoriu 112</strong>
+            <span>Înainte de orice raport, aplicația verifică dacă există răniți sau pericol imediat și redirecționează instant la 112.</span>
+          </div>
+        </div>
+        <div class="point-item frag">
+          <div class="point-dot">2</div>
+          <div>
+            <strong>Semnalare rapidă din mers</strong>
+            <span>Alegi categoria (intersecție periculoasă, carosabil, blocaj), fixezi zona și trimiți în 3 atingeri.</span>
+          </div>
+        </div>
+        <div class="point-item frag">
+          <div class="point-dot">3</div>
+          <div>
+            <strong>Accesibil instant</strong>
+            <span>Funcționează direct în browser pe <strong>iasi-safeflow.github.io</strong> sau ca aplicație instalabilă Android (APK).</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-mock frag">
+        <div class="mock-112">
+          <span><strong>Urgență sau răniți?</strong> SafeFlow nu e serviciu de urgență.</span>
+          <span class="mock-112-btn">Sună 112</span>
+        </div>
+        <div style="text-align:center; font-weight:700; font-size:13px; margin-bottom:8px;">Raportează</div>
+        <div class="mock-card">
+          <div style="font-size:13px; font-weight:700; line-height:1.35;">Este cineva rănit sau există un pericol imediat chiar acum?</div>
+          <div class="mock-btn-row">
+            <span class="mock-pill danger">Da → 112</span>
+            <span class="mock-pill primary">Nu, continuă</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 4: MINI-ANIMAȚIA (5 SCENE INTERACTIVE) -->
+  <section class="slide" id="slideAnim" data-note="1:30 – 2:15 | Momentul WOW: fiecare click avansează povestea prin cele 5 scene. Explică tranziția de la cetățean -> raport SafeFlow -> Dispecer + AI -> Poliția Locală -> Intersecție eliberată + Puncte Civice.">
+    <div class="anim-wrapper">
+      <div class="anim-header">
+        <div>
+          <div class="kicker" style="margin-bottom:2px;">03 • Viziunea Completă (Animație)</div>
+          <h2 style="margin-bottom:0; font-size:clamp(18px, 2.8vw, 32px);">Cum se rezolvă o intersecție blocată</h2>
+        </div>
+        <div class="scene-steps no-advance">
+          <span class="scene-dot active" data-s="0"></span>
+          <span class="scene-dot" data-s="1"></span>
+          <span class="scene-dot" data-s="2"></span>
+          <span class="scene-dot" data-s="3"></span>
+          <span class="scene-dot" data-s="4"></span>
+          <button class="hud-btn" id="btnAutoPlay" style="margin-left:6px;">▶ Auto</button>
+        </div>
+      </div>
+
+      <div class="svg-stage">
+        <svg viewBox="0 0 640 340" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="bgSky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#19132b"/>
+              <stop offset="100%" stop-color="#100c1c"/>
+            </linearGradient>
+            <linearGradient id="violetGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#8b5cf6"/>
+              <stop offset="100%" stop-color="#c4a5ff"/>
+            </linearGradient>
+          </defs>
+
+          <rect width="640" height="340" fill="url(#bgSky)"/>
+
+          <!-- SCENA 1: INTERSECȚIE BLOCATĂ -->
+          <g class="scene-g active" id="scene-0">
+            <!-- Roads -->
+            <rect x="0" y="135" width="640" height="86" fill="#232033"/>
+            <rect x="265" y="0" width="110" height="340" fill="#232033"/>
+            <!-- Crosswalk & dashes -->
+            <line x1="0" y1="178" x2="250" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
+            <line x1="390" y1="178" x2="640" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
+            <line x1="320" y1="0" x2="320" y2="120" stroke="#6b6385" stroke-width="3" stroke-dasharray="12 10"/>
+            <line x1="320" y1="235" x2="320" y2="340" stroke="#6b6385" stroke-width="3" stroke-dasharray="12 10"/>
+            <!-- Blocked diagonal car in center -->
+            <g class="anim-honk">
+              <rect x="284" y="150" width="76" height="38" rx="10" fill="#e03e3e" transform="rotate(-18 322 169)"/>
+              <rect x="300" y="156" width="38" height="26" rx="6" fill="#ffd6d6" opacity="0.7" transform="rotate(-18 322 169)"/>
+            </g>
+            <!-- Stuck cars left -->
+            <rect x="175" y="145" width="68" height="32" rx="8" fill="#60a5fa"/>
+            <rect x="92" y="145" width="68" height="32" rx="8" fill="#a78bfa"/>
+            <!-- Stuck car top -->
+            <rect x="278" y="65" width="34" height="58" rx="8" fill="#fbbf24"/>
+            <!-- Alert pulse ring -->
+            <circle cx="322" cy="170" r="28" fill="none" stroke="#ff5c5c" stroke-width="3" class="anim-pulse"/>
+            <g transform="translate(306, 108)">
+              <polygon points="16,0 32,28 0,28" fill="#e03e3e"/>
+              <text x="16" y="23" text-anchor="middle" fill="#fff" font-size="16" font-weight="800">!</text>
+            </g>
+            <!-- Citizen on sidewalk looking worried -->
+            <g transform="translate(468, 232)">
+              <circle cx="24" cy="18" r="14" fill="#fcd34d"/>
+              <circle cx="19" cy="16" r="2" fill="#1e1b2e"/>
+              <circle cx="29" cy="16" r="2" fill="#1e1b2e"/>
+              <path d="M18 25 Q24 20 30 25" stroke="#1e1b2e" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+              <rect x="10" y="34" width="28" height="44" rx="10" fill="#8b5cf6"/>
+              <rect x="46" y="0" width="110" height="30" rx="10" fill="#221b36" stroke="#e03e3e"/>
+              <text x="101" y="19" text-anchor="middle" fill="#ff8a8a" font-size="11" font-weight="700">Blocaj total!</text>
+            </g>
+            <text x="20" y="30" fill="#a69bc2" font-size="13" font-weight="700">IAȘI • INTERSECȚIE BLOCATĂ</text>
+          </g>
+
+          <!-- SCENA 2: RAPORTARE PE IAȘI SAFEFLOW -->
+          <g class="scene-g" id="scene-1">
+            <!-- Citizen -->
+            <g transform="translate(95, 118)">
+              <circle cx="48" cy="36" r="24" fill="#fcd34d"/>
+              <circle cx="40" cy="33" r="3" fill="#1e1b2e"/>
+              <circle cx="56" cy="33" r="3" fill="#1e1b2e"/>
+              <path d="M40 45 Q48 49 56 45" stroke="#1e1b2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <rect x="20" y="64" width="56" height="92" rx="18" fill="#8b5cf6"/>
+              <!-- Holding phone -->
+              <rect x="78" y="88" width="26" height="44" rx="5" fill="#c4a5ff" stroke="#fff" stroke-width="1.5"/>
+            </g>
+
+            <!-- Signal waves -->
+            <path d="M225 140 Q255 120 285 140" stroke="#c4a5ff" stroke-width="3" fill="none" stroke-linecap="round" class="anim-wave-1"/>
+            <path d="M215 122 Q255 92 295 122" stroke="#34d399" stroke-width="3" fill="none" stroke-linecap="round" class="anim-wave-2"/>
+
+            <!-- Enlarged SafeFlow Phone UI -->
+            <g transform="translate(310, 32)">
+              <rect x="0" y="0" width="235" height="276" rx="22" fill="#120e1d" stroke="#c4a5ff" stroke-width="2.5"/>
+              <rect x="14" y="16" width="207" height="32" rx="8" fill="#3a1824" stroke="#e03e3e"/>
+              <text x="117" y="36" text-anchor="middle" fill="#ff9494" font-size="11" font-weight="700">Nu e urgență 112 ✓</text>
+
+              <text x="18" y="72" fill="#c4a5ff" font-size="11" font-weight="700">SAFEFLOW IAȘI</text>
+              <text x="18" y="92" fill="#ffffff" font-size="14" font-weight="800">Semnalează o problemă</text>
+
+              <rect x="16" y="108" width="203" height="44" rx="10" fill="#221b36" stroke="#8b5cf6"/>
+              <text x="28" y="128" fill="#ffffff" font-size="12" font-weight="700">Intersecție blocată</text>
+              <text x="28" y="143" fill="#a69bc2" font-size="10">Locație detectată (~10m)</text>
+
+              <rect x="16" y="164" width="203" height="36" rx="10" fill="#221b36"/>
+              <text x="28" y="186" fill="#a69bc2" font-size="11">„Acces blocat, coloană pe 2 benzi”</text>
+
+              <rect x="16" y="216" width="203" height="40" rx="12" fill="url(#violetGrad)"/>
+              <text x="117" y="241" text-anchor="middle" fill="#120e1d" font-size="14" font-weight="800">Trimite raport →</text>
+            </g>
+          </g>
+
+          <!-- SCENA 3: DISPECER + AI PRIORITIZARE -->
+          <g class="scene-g" id="scene-2">
+            <!-- Dispatcher Desk & Monitor -->
+            <rect x="38" y="30" width="380" height="236" rx="16" fill="#141024" stroke="#8b5cf6" stroke-width="2"/>
+            <!-- Top Bar -->
+            <rect x="38" y="30" width="380" height="34" rx="16" fill="#221b36"/>
+            <text x="56" y="51" fill="#c4a5ff" font-size="12" font-weight="800">CONT DISPECER • IAȘI SAFEFLOW</text>
+            <circle cx="394" cy="47" r="6" fill="#34d399"/>
+
+            <!-- Map widget left -->
+            <rect x="54" y="78" width="150" height="170" rx="10" fill="#1d2524" stroke="#362c54"/>
+            <line x1="54" y1="155" x2="204" y2="155" stroke="#475569" stroke-width="8"/>
+            <line x1="128" y1="78" x2="128" y2="248" stroke="#475569" stroke-width="8"/>
+            <circle cx="128" cy="155" r="22" fill="none" stroke="#fbbf24" stroke-width="3" class="anim-pulse"/>
+            <circle cx="128" cy="155" r="11" fill="#e03e3e"/>
+            <text x="128" y="159" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">3</text>
+
+            <!-- AI Alert Card right -->
+            <rect x="218" y="78" width="184" height="170" rx="12" fill="#1e1730" stroke="#fbbf24" stroke-width="1.5"/>
+            <rect x="230" y="90" width="160" height="22" rx="6" fill="rgba(251,191,36,0.2)"/>
+            <text x="310" y="105" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="800">AI: 3 RAPOARTE SIMILARE</text>
+            <text x="230" y="132" fill="#ffffff" font-size="12" font-weight="700">Intersecție blocată</text>
+            <text x="230" y="149" fill="#a69bc2" font-size="10">ID: SF-849201 • Prioritate: Mare</text>
+            <text x="230" y="166" fill="#34d399" font-size="10" font-weight="700">✓ Validat de dispecer</text>
+
+            <rect x="230" y="192" width="160" height="38" rx="10" fill="#34d399"/>
+            <text x="310" y="215" text-anchor="middle" fill="#0d1f18" font-size="12" font-weight="800">Trimite Poliția Locală →</text>
+
+            <!-- Dispatcher Character -->
+            <g transform="translate(465, 108)">
+              <circle cx="62" cy="40" r="24" fill="#fcd34d"/>
+              <!-- Headset -->
+              <path d="M36 40 A26 26 0 0 1 88 40" stroke="#c4a5ff" stroke-width="5" fill="none"/>
+              <rect x="32" y="34" width="8" height="16" rx="4" fill="#8b5cf6"/>
+              <rect x="84" y="34" width="8" height="16" rx="4" fill="#8b5cf6"/>
+              <circle cx="54" cy="38" r="2.8" fill="#1e1b2e"/>
+              <circle cx="70" cy="38" r="2.8" fill="#1e1b2e"/>
+              <path d="M55 49 Q62 53 69 49" stroke="#1e1b2e" stroke-width="2.2" fill="none"/>
+              <rect x="30" y="70" width="64" height="92" rx="18" fill="#3b82f6"/>
+              <text x="62" y="118" text-anchor="middle" fill="#fff" font-size="11" font-weight="800">DISPECER</text>
+            </g>
+          </g>
+
+          <!-- SCENA 4: POLIȚIA LOCALĂ ELIBEREAZĂ INTERSECȚIA -->
+          <g class="scene-g" id="scene-3">
+            <!-- Roads -->
+            <rect x="0" y="135" width="640" height="86" fill="#232033"/>
+            <rect x="265" y="0" width="110" height="340" fill="#232033"/>
+            <line x1="0" y1="178" x2="250" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
+            <line x1="390" y1="178" x2="640" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
+
+            <!-- Police Car -->
+            <g transform="translate(270, 232)">
+              <rect x="0" y="0" width="98" height="44" rx="10" fill="#f8fafc" stroke="#3b82f6" stroke-width="2"/>
+              <rect x="0" y="24" width="98" height="10" fill="#2563eb"/>
+              <text x="49" y="19" text-anchor="middle" fill="#1e293b" font-size="9" font-weight="900">POLIȚIA LOCALĂ</text>
+              <!-- Flashing Siren -->
+              <rect x="36" y="-8" width="12" height="8" rx="2" fill="#ef4444" class="anim-siren-r"/>
+              <rect x="50" y="-8" width="12" height="8" rx="2" fill="#3b82f6" class="anim-siren-b"/>
+            </g>
+
+            <!-- Flowing Cars (moving smoothly!) -->
+            <g class="anim-car-go-r">
+              <rect x="110" y="145" width="68" height="30" rx="8" fill="#60a5fa"/>
+              <rect x="240" y="145" width="68" height="30" rx="8" fill="#a78bfa"/>
+              <rect x="370" y="145" width="68" height="30" rx="8" fill="#34d399"/>
+            </g>
+            <g class="anim-car-go-d">
+              <rect x="278" y="18" width="32" height="54" rx="8" fill="#fbbf24"/>
+            </g>
+
+            <!-- Green Cleared Banner -->
+            <rect x="20" y="22" width="230" height="38" rx="12" fill="rgba(52,211,153,0.18)" stroke="#34d399"/>
+            <text x="135" y="46" text-anchor="middle" fill="#34d399" font-size="13" font-weight="800">✓ INTERSECȚIE ELIBERATĂ</text>
+          </g>
+
+          <!-- SCENA 5: CETĂȚEAN FERICIT + PUNCTE CIVICE -->
+          <g class="scene-g" id="scene-4">
+            <!-- Confetti sparkles -->
+            <circle cx="130" cy="70" r="5" fill="#fbbf24" class="anim-float"/>
+            <circle cx="510" cy="84" r="6" fill="#34d399" class="anim-float"/>
+            <circle cx="215" cy="52" r="4" fill="#c4a5ff" class="anim-float"/>
+            <circle cx="440" cy="58" r="5" fill="#60a5fa" class="anim-float"/>
+            <circle cx="545" cy="185" r="4" fill="#fbbf24" class="anim-float"/>
+
+            <!-- Happy Citizen celebrating -->
+            <g transform="translate(115, 92)">
+              <!-- Raised happy arms -->
+              <path d="M26 88 L-6 44" stroke="#8b5cf6" stroke-width="14" stroke-linecap="round"/>
+              <path d="M84 88 L116 44" stroke="#8b5cf6" stroke-width="14" stroke-linecap="round"/>
+              <!-- Body -->
+              <rect x="24" y="74" width="62" height="106" rx="20" fill="#8b5cf6"/>
+              <!-- Head with big smile -->
+              <circle cx="55" cy="38" r="28" fill="#fcd34d"/>
+              <!-- Happy eyes (^ ^) -->
+              <path d="M40 34 Q45 27 50 34" stroke="#1e1b2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M60 34 Q65 27 70 34" stroke="#1e1b2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <!-- Big wide smile -->
+              <path d="M41 46 Q55 62 69 46 Z" fill="#1e1b2e"/>
+              <path d="M46 52 Q55 57 64 52" stroke="#ff7b7b" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </g>
+
+            <!-- Reward Phone & Floating Points Badge -->
+            <g transform="translate(310, 62)" class="anim-pop">
+              <rect x="0" y="42" width="248" height="176" rx="18" fill="#181326" stroke="#34d399" stroke-width="2.5"/>
+              <text x="124" y="82" text-anchor="middle" fill="#34d399" font-size="14" font-weight="800">✓ RAPORT REZOLVAT</text>
+              <text x="124" y="106" text-anchor="middle" fill="#e4ddf5" font-size="12">Intersecția a fost eliberată</text>
+              <text x="124" y="124" text-anchor="middle" fill="#a69bc2" font-size="11">Mulțumim pentru implicare!</text>
+
+              <!-- Points Pill -->
+              <g class="anim-float">
+                <rect x="26" y="144" width="196" height="48" rx="24" fill="#fbbf24"/>
+                <text x="124" y="174" text-anchor="middle" fill="#1a1204" font-size="18" font-weight="900">★ +50 PUNCTE CIVICE</text>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="anim-caption">
+        <div>
+          <div class="anim-caption-title" id="animTitle">1. Cetățeanul observă o intersecție blocată</div>
+          <div class="anim-caption-sub" id="animSub">Traficul stă pe loc în Iași, iar riscul de incidente crește cu fiecare minut.</div>
+        </div>
+        <span class="badge" id="animStepBadge">Scena 1 / 5</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5: PROTOTIP REAL v0.4.1 -->
+  <section class="slide" data-note="2:15 – 2:55 | Arată clar ce există deja construit și live astăzi în v0.4.1, pentru credibilitate tehnică maximă în fața juriului.">
+    <div class="kicker">04 • Ce funcționează deja (v0.4.1)</div>
+    <h2>Prototip real, live pe <span class="accent-text">iasi-safeflow.github.io</span></h2>
+    <div class="grid-2">
+      <div class="phone-mock frag">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:6px;">
+          <span class="badge" style="font-size:10px; padding:2px 8px;">Zone frecvente</span>
+          <span style="color:var(--muted);">Caută o stradă în Iași...</span>
+        </div>
+        <div class="mini-map">
+          <span class="map-label" style="top:12px; left:18px;">Ticău</span>
+          <span class="map-label" style="top:38px; right:26px;">Tătărași</span>
+          <span class="map-label" style="bottom:18px; left:40%;">Tudor Vladimirescu</span>
+          <span class="cluster-dot" style="top:34px; left:30%;">4</span>
+          <span class="cluster-dot" style="top:54px; left:52%;">4</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; background:var(--surface-2); padding:6px 10px; border-radius:9px;">
+          <span>Tracking ID:</span>
+          <strong class="accent-text">SF-849201</strong>
+        </div>
+        <div class="status-legend">
+          <span><i class="s-dot" style="background:#60a5fa;"></i>Primit</span>
+          <span><i class="s-dot" style="background:#fbbf24;"></i>În analiză</span>
+          <span><i class="s-dot" style="background:#2dd4bf;"></i>Validat</span>
+          <span><i class="s-dot" style="background:#34d399;"></i>Rezolvat</span>
+        </div>
+      </div>
+
+      <div class="point-list">
+        <div class="point-item frag">
+          <div class="point-dot">🗺</div>
+          <div>
+            <strong>Hartă Leaflet + OpenStreetMap</strong>
+            <span>Comutare între Puncte individuale și Zone frecvente (clustering) + căutare după stradă.</span>
+          </div>
+        </div>
+        <div class="point-item frag">
+          <div class="point-dot">ID</div>
+          <div>
+            <strong>Verificare fără cont obligatoriu</strong>
+            <span>Fiecare raport primește cod unic <code>SF-XXXXXXXX</code> pentru a urmări statusul în timp real.</span>
+          </div>
+        </div>
+        <div class="point-item frag">
+          <div class="point-dot">⚡</div>
+          <div>
+            <strong>Backend API pe Render + Fallback</strong>
+            <span>API dedicat (<code>iasi-safeflow-api.onrender.com</code>) și date simulate automate pentru demo continuu.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6: AI + HUMAN-IN-THE-LOOP -->
+  <section class="slide" data-note="2:55 – 3:30 | Subliniază arhitectura responsabilă: AI-ul nu ia decizii oarbe și nu sună singur la poliție; el elimină zgomotul și grupează rapoartele similare pentru dispecer.">
+    <div class="kicker">05 • Inteligența Artificială</div>
+    <h2>AI pentru prioritizare, <span class="green-text">omul</span> ia decizia finală.</h2>
+    <p class="lead" style="margin-bottom:clamp(10px, 1.8vh, 18px);">Model <strong>Human-in-the-Loop</strong> care transformă rapoarte dispersate în alerte clare de dispecerat.</p>
+    <div class="pipeline">
+      <div class="pipe-step frag">
+        <div class="pipe-num">PAS 01</div>
+        <h3>Rapoarte brute</h3>
+        <p>Mai mulți cetățeni semnalează aceeași intersecție sau același defect din zonă.</p>
+      </div>
+      <div class="pipe-step frag">
+        <div class="pipe-num">PAS 02</div>
+        <h3>Similaritate text</h3>
+        <p>Motorul AI compară descrierile și coordonatele pentru a detecta duplicatele.</p>
+      </div>
+      <div class="pipe-step frag">
+        <div class="pipe-num">PAS 03</div>
+        <h3>Scor de prioritate</h3>
+        <p>Reguli + frecvența observațiilor ridică automat urgența în lista de analiză.</p>
+      </div>
+      <div class="pipe-step frag" style="border-color:rgba(52,211,153,0.45);">
+        <div class="pipe-num" style="color:var(--green);">PAS 04</div>
+        <h3>Validare umană</h3>
+        <p>Recenzentul / dispecerul confirmă și trimite sesizarea către echipaj.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 7: PRIVACY & DESIGN RESPONSABIL -->
+  <section class="slide" data-note="3:30 – 4:05 | Diferențiatorii de maturitate tehnică: protecția reală a locației (Privacy by Design), transparență totală și o interfață adaptabilă pe orice telefon.">
+    <div class="kicker">06 • Diferențiatori</div>
+    <h2>Construit responsabil: <span class="accent-text">Privacy by Design</span></h2>
+    <div class="grid-3">
+      <div class="card frag">
+        <span class="badge" style="margin-bottom:8px;">Confidențialitate</span>
+        <h3>Coordonate rotunjite</h3>
+        <p>Serverul trimite coordonate rotunjite (~10 m) la OpenStreetMap Nominatim fără date personale, iar pe hartă punctele sunt aproximative (~100 m).</p>
+      </div>
+      <div class="card frag">
+        <span class="badge badge-red" style="margin-bottom:8px;">Transparență</span>
+        <h3>Delimitare clară 112</h3>
+        <p>Fiecare raport este etichetat corect ca observație civică, nu dovadă oficială de accident, cu buton permanent „Sună 112”.</p>
+      </div>
+      <div class="card frag">
+        <span class="badge badge-green" style="margin-bottom:8px;">UX Adaptiv</span>
+        <h3>Claritate în orice condiții</h3>
+        <p>Temă Automată / Luminos / Întunecat, opțiune Text mare, Contrast ridicat, vibrații la confirmare și APK Android dedicat.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 8: GAMIFICARE & IMPACT B2G -->
+  <section class="slide" data-note="4:05 – 4:40 | Arată de ce aplicația nu va fi abandonată după o săptămână: gamificare prin puncte civice pentru utilizatori și un panou clar B2G pentru autoritățile locale din Iași.">
+    <div class="kicker">07 • Retenție & Pilot Iași</div>
+    <h2>De ce revin cetățenii și cum scalăm în <span class="green-text">Iași</span></h2>
+    <div class="grid-2">
+      <div class="card frag" style="border-color:rgba(251,191,36,0.35);">
+        <span class="badge" style="background:rgba(251,191,36,0.16); color:var(--amber); border-color:rgba(251,191,36,0.35); margin-bottom:10px;">★ Gamificare Civică</span>
+        <h3>Puncte reale pentru rapoarte validate</h3>
+        <p style="margin-bottom:10px;">Când o sesizare este confirmată și rezolvată, utilizatorul primește <strong>puncte civice</strong> și insigne de „Cetățean Activ”.</p>
+        <p>Pe termen mediu: posibile parteneriate locale (reduceri comunitare, beneficii transport public) pentru cei mai activi contributori.</p>
+      </div>
+      <div class="card frag" style="border-color:rgba(52,211,153,0.35);">
+        <span class="badge badge-green" style="margin-bottom:10px;">🏛 Integrare Dispecerat (B2G)</span>
+        <h3>Pilot cu Poliția Locală & Primăria Iași</h3>
+        <p style="margin-bottom:10px;">Fluxul actual „Pregătit pentru sesizare” se conectează direct la contul dedicat de <strong>Dispecer</strong>.</p>
+        <p>Autoritățile primesc hărți de căldură cu zonele problematice și alerte deja filtrate de AI — mai puțină birocrație, intervenții mai rapide.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 9: CONCLUZIE & Q&A -->
+  <section class="slide" data-note="4:40 – 5:00 | Încheiere memorabilă și deschidere către întrebări. Invită juriul să testeze live prototipul pe telefon.">
+    <div class="kicker">08 • Concluzie</div>
+    <h1>Trafic mai sigur în Iași,<br><span class="accent-text">construit împreună.</span></h1>
+    <p class="lead">Prototip funcțional astăzi. Dispecerat inteligent și comunitate premiată mâine.</p>
+    <div class="cta-box frag">
+      <span>🌐 iasi-safeflow.github.io</span>
+      <span class="badge badge-green">Echipa Synaptik</span>
+    </div>
+    <p class="frag" style="margin-top:18px; font-size:clamp(15px, 2vw, 22px); font-weight:700; color:var(--text);">
+      Vă mulțumim! Suntem gata pentru întrebări.
+    </p>
+  </section>
+
+</main>
+
+<div class="tap-hint" id="tapHint">Click / Tap oriunde pentru înainte →</div>
+
+<!-- Notes Modal -->
+<div class="modal-backdrop no-advance" id="notesModal">
+  <div class="modal-box">
+    <div class="modal-top">
+      <strong style="color:var(--accent); font-size:14px;">📝 Note prezentator — <span id="notesSlideLabel">Slide 1</span></strong>
+      <button class="hud-btn" id="btnCloseNotes">✕ Închide</button>
+    </div>
+    <div class="modal-body" id="notesText"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const totalSlides = slides.length;
+  let currentSlide = 0;
+
+  // Slide 4 (index 3) Animation State
+  const ANIM_SLIDE_INDEX = 3;
+  const animScenes = [
+    {
+      title: '1. Cetățeanul observă o intersecție blocată',
+      sub: 'Traficul stă pe loc în Iași, iar riscul de incidente crește cu fiecare minut.'
+    },
+    {
+      title: '2. Raportează rapid pe Iași SafeFlow',
+      sub: 'Trece de triajul 112 și trimite alerta geolocalizată în mai puțin de un minut.'
+    },
+    {
+      title: '3. Dispecerul vede alerta prioritizată de AI',
+      sub: 'AI-ul grupează rapoartele similare din zonă, iar dispecerul validează și alocă echipajul.'
+    },
+    {
+      title: '4. Poliția Locală intervine și eliberează intersecția',
+      sub: 'Echipajul ajunge la punctul raportat, deblochează traficul, iar circulația revine la normal.'
+    },
+    {
+      title: '5. Status „Rezolvat” + Cetățean fericit cu +50 Puncte Civice',
+      sub: 'Feedback instant și recompensă civică — dovada clară că implicarea lui a contat.'
+    }
+  ];
+  let currentScene = 0;
+  let autoTimer = null;
+
+  const progressFill = document.getElementById('progressFill');
+  const slideCounter = document.getElementById('slideCounter');
+  const tapHint = document.getElementById('tapHint');
+  const notesModal = document.getElementById('notesModal');
+  const notesText = document.getElementById('notesText');
+  const notesSlideLabel = document.getElementById('notesSlideLabel');
+  const btnAutoPlay = document.getElementById('btnAutoPlay');
+
+  function setScene(idx) {
+    currentScene = Math.max(0, Math.min(animScenes.length - 1, idx));
+    for (let i = 0; i < animScenes.length; i++) {
+      const g = document.getElementById('scene-' + i);
+      if (g) g.classList.toggle('active', i === currentScene);
+    }
+    document.querySelectorAll('.scene-dot').forEach((dot, i) => {
+      dot.classList.toggle('active', i === currentScene);
+      dot.classList.toggle('done', i < currentScene);
+    });
+    document.getElementById('animTitle').textContent = animScenes[currentScene].title;
+    document.getElementById('animSub').textContent = animScenes[currentScene].sub;
+    document.getElementById('animStepBadge').textContent = `Scena ${currentScene + 1} / ${animScenes.length}`;
+  }
+
+  function stopAutoPlay() {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+      btnAutoPlay.textContent = '▶ Auto';
+    }
+  }
+
+  function toggleAutoPlay() {
+    if (autoTimer) {
+      stopAutoPlay();
+      return;
+    }
+    btnAutoPlay.textContent = '⏸ Pauză';
+    autoTimer = setInterval(() => {
+      if (currentSlide !== ANIM_SLIDE_INDEX) {
+        stopAutoPlay();
+        return;
+      }
+      if (currentScene < animScenes.length - 1) {
+        setScene(currentScene + 1);
+      } else {
+        setScene(0);
+      }
+    }, 3400);
+  }
+
+  function updateHUD() {
+    const pct = ((currentSlide + 1) / totalSlides) * 100;
+    progressFill.style.width = pct + '%';
+    slideCounter.textContent = `${String(currentSlide + 1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+    notesSlideLabel.textContent = `Slide ${currentSlide + 1} / ${totalSlides}`;
+    notesText.textContent = slides[currentSlide].dataset.note || '';
+    tapHint.style.opacity = currentSlide === totalSlides - 1 ? '0' : '1';
+  }
+
+  function goToSlide(index, revealAll) {
+    stopAutoPlay();
+    slides[currentSlide].classList.remove('active');
+    currentSlide = Math.max(0, Math.min(totalSlides - 1, index));
+    const slide = slides[currentSlide];
+    slide.classList.add('active');
+
+    const frags = slide.querySelectorAll('.frag');
+    frags.forEach(f => f.classList.toggle('visible', !!revealAll));
+
+    if (currentSlide === ANIM_SLIDE_INDEX) {
+      setScene(revealAll ? animScenes.length - 1 : 0);
+    }
+    updateHUD();
+  }
+
+  function nextStep() {
+    if (notesModal.classList.contains('open')) return;
+
+    // On animation slide, advance scene-by-scene on every click
+    if (currentSlide === ANIM_SLIDE_INDEX) {
+      stopAutoPlay();
+      if (currentScene < animScenes.length - 1) {
+        setScene(currentScene + 1);
+        return;
+      }
+    }
+
+    // Reveal next hidden fragment on current slide
+    const nextFrag = slides[currentSlide].querySelector('.frag:not(.visible)');
+    if (nextFrag) {
+      nextFrag.classList.add('visible');
+      return;
+    }
+
+    // Move to next slide
+    if (currentSlide < totalSlides - 1) {
+      goToSlide(currentSlide + 1, false);
+    }
+  }
+
+  function prevStep() {
+    if (notesModal.classList.contains('open')) return;
+
+    if (currentSlide === ANIM_SLIDE_INDEX) {
+      stopAutoPlay();
+      if (currentScene > 0) {
+        setScene(currentScene - 1);
+        return;
+      }
+    }
+
+    const visibleFrags = slides[currentSlide].querySelectorAll('.frag.visible');
+    if (visibleFrags.length > 0) {
+      visibleFrags[visibleFrags.length - 1].classList.remove('visible');
+      return;
+    }
+
+    if (currentSlide > 0) {
+      goToSlide(currentSlide - 1, true);
+    }
+  }
+
+  // Click / Tap anywhere on stage advances immediately
+  let swipeHandled = false;
+  document.getElementById('stage').addEventListener('click', (e) => {
+    if (swipeHandled) {
+      swipeHandled = false;
+      return;
+    }
+    if (e.target.closest('.no-advance, button, a')) return;
+    nextStep();
+  });
+
+  // Touch swipe support (left = next, right = prev)
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.getElementById('stage').addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.getElementById('stage').addEventListener('touchend', (e) => {
+    if (!e.changedTouches.length) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      swipeHandled = true;
+      if (dx < 0) nextStep();
+      else prevStep();
+    }
+  }, { passive: true });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') {
+      e.preventDefault();
+      nextStep();
+    } else if (e.key === 'ArrowLeft' || e.key === 'Backspace' || e.key === 'PageUp') {
+      e.preventDefault();
+      prevStep();
+    } else if (e.key.toLowerCase() === 'n') {
+      notesModal.classList.toggle('open');
+    } else if (e.key === 'Escape') {
+      notesModal.classList.remove('open');
+    } else if (e.key.toLowerCase() === 'f') {
+      toggleFullscreen();
+    }
+  });
+
+  // HUD Controls
+  document.getElementById('btnPrev').addEventListener('click', (e) => {
+    e.stopPropagation();
+    prevStep();
+  });
+
+  btnAutoPlay.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleAutoPlay();
+  });
+
+  document.querySelectorAll('.scene-dot').forEach(dot => {
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      stopAutoPlay();
+      setScene(Number(dot.dataset.s));
+    });
+  });
+
+  document.getElementById('btnNotes').addEventListener('click', (e) => {
+    e.stopPropagation();
+    notesModal.classList.toggle('open');
+  });
+  document.getElementById('btnCloseNotes').addEventListener('click', () => {
+    notesModal.classList.remove('open');
+  });
+  notesModal.addEventListener('click', (e) => {
+    if (e.target === notesModal) notesModal.classList.remove('open');
+  });
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  }
+  document.getElementById('btnFull').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleFullscreen();
+  });
+
+  // 5-Minute Pitch Countdown Timer
+  const btnTimer = document.getElementById('btnTimer');
+  let timeLeft = 300;
+  let timerInterval = null;
+
+  function renderTimer() {
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    btnTimer.textContent = `⏱ ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    btnTimer.classList.toggle('timer-running', !!timerInterval && timeLeft > 45);
+    btnTimer.classList.toggle('timer-warn', timeLeft <= 45);
+  }
+
+  btnTimer.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    } else {
+      if (timeLeft <= 0) timeLeft = 300;
+      timerInterval = setInterval(() => {
+        if (timeLeft > 0) {
+          timeLeft--;
+          renderTimer();
+        } else {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          renderTimer();
+        }
+      }, 1000);
+    }
+    renderTimer();
+  });
+
+  btnTimer.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timeLeft = 300;
+    renderTimer();
+  });
+
+  updateHUD();
+  renderTimer();
+})();
+</script>
+</body>
+</html>
