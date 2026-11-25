@@ -1,1455 +1,1052 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Iași SafeFlow — Pitch Echipa Synaptik</title>
-<style>
-  :root {
-    --bg: #0e0b16;
-    --surface: #181326;
-    --surface-2: #221b36;
-    --border: rgba(196, 165, 255, 0.16);
-    --text: #f5f2ff;
-    --muted: #a69bc2;
-    --accent: #c4a5ff;
-    --accent-strong: #8b5cf6;
-    --red: #e03e3e;
-    --red-bg: rgba(224, 62, 62, 0.16);
-    --green: #34d399;
-    --amber: #fbbf24;
-    --blue: #60a5fa;
-    --hud-h: 44px;
-  }
-
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  html, body {
-    width: 100%;
-    height: 100dvh;
-    overflow: hidden;
-    background: radial-gradient(circle at 80% 10%, rgba(139, 92, 246, 0.14), transparent 45%),
-                radial-gradient(circle at 15% 90%, rgba(52, 211, 153, 0.08), transparent 40%),
-                var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
-    user-select: none;
-  }
-
-  /* Progress bar */
-  .progress-track {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.08);
-    z-index: 60;
-  }
-  .progress-fill {
-    height: 100%;
-    width: 11%;
-    background: linear-gradient(90deg, var(--accent-strong), var(--accent));
-    transition: width 0.35s ease;
-  }
-
-  /* Minimal top HUD */
-  .hud {
-    position: fixed;
-    top: 3px;
-    left: 0;
-    right: 0;
-    height: var(--hud-h);
-    padding: 0 clamp(10px, 2.5vw, 24px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 50;
-    background: linear-gradient(180deg, rgba(14, 11, 22, 0.92), rgba(14, 11, 22, 0));
-  }
-  .hud-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .hud-btn {
-    background: rgba(24, 19, 38, 0.85);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 999px;
-    height: 30px;
-    padding: 0 11px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .hud-btn:hover {
-    background: var(--surface-2);
-    border-color: var(--accent);
-  }
-  .hud-counter {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-    font-variant-numeric: tabular-nums;
-  }
-  .timer-running {
-    border-color: var(--green);
-    color: var(--green);
-  }
-  .timer-warn {
-    border-color: var(--red);
-    color: #ff7b7b;
-  }
-
-  /* Main clickable stage */
-  #stage {
-    position: fixed;
-    top: calc(var(--hud-h) + 3px);
-    left: 0;
-    right: 0;
-    bottom: 0;
-    cursor: pointer;
-    overflow: hidden;
-  }
-
-  .slide {
-    position: absolute;
-    inset: 0;
-    padding: clamp(10px, 2.5vh, 28px) clamp(14px, 4vw, 56px) clamp(18px, 3vh, 32px);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(10px);
-    transition: opacity 0.28s ease, transform 0.28s ease;
-    max-width: 1180px;
-    margin: 0 auto;
-  }
-  .slide.active {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-
-  /* Typography */
-  .kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: clamp(10px, 1.3vw, 13px);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--accent);
-    margin-bottom: clamp(6px, 1.2vh, 12px);
-  }
-  h1 {
-    font-size: clamp(28px, 5.4vw, 62px);
-    line-height: 1.08;
-    font-weight: 800;
-    letter-spacing: -0.025em;
-    margin-bottom: clamp(10px, 1.8vh, 18px);
-  }
-  h2 {
-    font-size: clamp(22px, 3.6vw, 42px);
-    line-height: 1.14;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin-bottom: clamp(10px, 2vh, 22px);
-  }
-  .lead {
-    font-size: clamp(14px, 2vw, 22px);
-    line-height: 1.45;
-    color: var(--muted);
-    max-width: 720px;
-  }
-  .accent-text { color: var(--accent); }
-  .green-text { color: var(--green); }
-  .red-text { color: #ff6b6b; }
-  .amber-text { color: var(--amber); }
-
-  /* Click-by-click fragments */
-  .frag {
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.26s ease, transform 0.26s ease;
-  }
-  .frag.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* Grids & Cards */
-  .grid-3 {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: clamp(8px, 1.8vw, 18px);
-    width: 100%;
-  }
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1.08fr 0.92fr;
-    gap: clamp(12px, 2.5vw, 28px);
-    align-items: center;
-    width: 100%;
-  }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: clamp(11px, 2vh, 20px) clamp(12px, 1.8vw, 20px);
-  }
-  .card h3 {
-    font-size: clamp(14px, 1.8vw, 19px);
-    margin-bottom: 6px;
-    font-weight: 700;
-  }
-  .card p {
-    font-size: clamp(12px, 1.45vw, 15px);
-    line-height: 1.42;
-    color: var(--muted);
-  }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: clamp(11px, 1.2vw, 13px);
-    font-weight: 700;
-    background: rgba(196, 165, 255, 0.14);
-    color: var(--accent);
-    border: 1px solid rgba(196, 165, 255, 0.25);
-  }
-  .badge-red {
-    background: var(--red-bg);
-    color: #ff8080;
-    border-color: rgba(224, 62, 62, 0.4);
-  }
-  .badge-green {
-    background: rgba(52, 211, 153, 0.14);
-    color: var(--green);
-    border-color: rgba(52, 211, 153, 0.35);
-  }
-
-  .hook-box {
-    margin-top: clamp(14px, 2.5vh, 28px);
-    padding: clamp(12px, 2vh, 18px) clamp(14px, 2vw, 22px);
-    border-left: 4px solid var(--accent);
-    background: rgba(196, 165, 255, 0.08);
-    border-radius: 0 14px 14px 0;
-    font-size: clamp(14px, 1.9vw, 20px);
-    line-height: 1.4;
-    font-style: italic;
-    max-width: 780px;
-  }
-
-  /* List items */
-  .point-list {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(8px, 1.5vh, 14px);
-  }
-  .point-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 13px;
-    padding: clamp(9px, 1.4vh, 14px) clamp(11px, 1.5vw, 16px);
-  }
-  .point-dot {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
-    background: rgba(196, 165, 255, 0.16);
-    color: var(--accent);
-    font-weight: 800;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-  .point-item strong {
-    display: block;
-    font-size: clamp(13px, 1.55vw, 16px);
-    margin-bottom: 2px;
-  }
-  .point-item span {
-    display: block;
-    font-size: clamp(11.5px, 1.3vw, 14px);
-    color: var(--muted);
-    line-height: 1.35;
-  }
-
-  /* Phone Mockup */
-  .phone-mock {
-    background: #120e1d;
-    border: 2px solid rgba(196, 165, 255, 0.28);
-    border-radius: 22px;
-    padding: clamp(10px, 1.6vh, 14px);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
-    max-width: 340px;
-    width: 100%;
-    margin: 0 auto;
-  }
-  .mock-112 {
-    background: rgba(224, 62, 62, 0.2);
-    border: 1px solid rgba(224, 62, 62, 0.45);
-    border-radius: 12px;
-    padding: 8px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 10px;
-    font-size: 11px;
-  }
-  .mock-112-btn {
-    background: var(--red);
-    color: #fff;
-    font-weight: 700;
-    padding: 5px 9px;
-    border-radius: 999px;
-    white-space: nowrap;
-    font-size: 11px;
-  }
-  .mock-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 12px;
-  }
-  .mock-btn-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-  }
-  .mock-pill {
-    padding: 6px 14px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    border: 1px solid var(--border);
-    background: var(--surface-2);
-  }
-  .mock-pill.danger {
-    background: rgba(224, 62, 62, 0.22);
-    color: #ff8585;
-    border-color: rgba(224, 62, 62, 0.4);
-  }
-  .mock-pill.primary {
-    background: var(--accent);
-    color: #150f24;
-    border-color: var(--accent);
-  }
-
-  /* Mini map inside phone mockup */
-  .mini-map {
-    position: relative;
-    height: clamp(105px, 18vh, 145px);
-    border-radius: 12px;
-    background:
-      linear-gradient(125deg, transparent 42%, rgba(251, 191, 36, 0.18) 43%, rgba(251, 191, 36, 0.18) 45%, transparent 46%),
-      linear-gradient(35deg, transparent 54%, rgba(196, 165, 255, 0.16) 55%, rgba(196, 165, 255, 0.16) 57%, transparent 58%),
-      radial-gradient(circle at 30% 45%, rgba(139, 92, 246, 0.22), transparent 50%),
-      #1b2220;
-    border: 1px solid var(--border);
-    overflow: hidden;
-    margin: 8px 0;
-  }
-  .map-label {
-    position: absolute;
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.55);
-    font-weight: 600;
-  }
-  .cluster-dot {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #161026;
-    font-size: 11px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 0 4px rgba(196, 165, 255, 0.28);
-  }
-  .status-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 6px;
-  }
-  .s-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    margin-right: 4px;
-  }
-
-  /* Slide 4: 5-Scene Animation Stage */
-  .anim-wrapper {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: clamp(8px, 1.4vh, 14px);
-  }
-  .anim-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .scene-steps {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .scene-dot {
-    width: 24px;
-    height: 6px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.16);
-    transition: all 0.25s;
-  }
-  .scene-dot.active {
-    width: 38px;
-    background: var(--accent);
-  }
-  .scene-dot.done {
-    background: var(--green);
-  }
-  .svg-stage {
-    width: 100%;
-    max-height: clamp(210px, 46vh, 390px);
-    aspect-ratio: 16 / 8.5;
-    background: #130f21;
-    border: 1px solid rgba(196, 165, 255, 0.24);
-    border-radius: 18px;
-    overflow: hidden;
-    position: relative;
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
-  }
-  .svg-stage svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-  .anim-caption {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: clamp(9px, 1.5vh, 14px) clamp(12px, 2vw, 18px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .anim-caption-title {
-    font-size: clamp(13px, 1.7vw, 18px);
-    font-weight: 700;
-    color: var(--text);
-  }
-  .anim-caption-sub {
-    font-size: clamp(11.5px, 1.35vw, 14px);
-    color: var(--muted);
-    margin-top: 2px;
-  }
-
-  /* SVG Scene Animations */
-  .scene-g { display: none; }
-  .scene-g.active { display: block; animation: fadeInScene 0.35s ease; }
-
-  @keyframes fadeInScene {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  @keyframes pulseRing {
-    0% { transform: scale(0.8); opacity: 0.9; }
-    100% { transform: scale(1.7); opacity: 0; }
-  }
-  @keyframes honkShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    75% { transform: translateX(2px); }
-  }
-  @keyframes waveUp {
-    0% { opacity: 0; transform: translateY(8px) scale(0.9); }
-    50% { opacity: 1; }
-    100% { opacity: 0; transform: translateY(-18px) scale(1.15); }
-  }
-  @keyframes sirenRed {
-    0%, 49% { opacity: 1; }
-    50%, 100% { opacity: 0.15; }
-  }
-  @keyframes sirenBlue {
-    0%, 49% { opacity: 0.15; }
-    50%, 100% { opacity: 1; }
-  }
-  @keyframes driveClearRight {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(170px); }
-  }
-  @keyframes driveClearDown {
-    0% { transform: translateY(0); }
-    100% { transform: translateY(110px); }
-  }
-  @keyframes floatPoints {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-9px); }
-  }
-  @keyframes popBadge {
-    0% { transform: scale(0.75); opacity: 0; }
-    65% { transform: scale(1.06); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-
-  .anim-honk { animation: honkShake 0.45s infinite; transform-box: fill-box; transform-origin: center; }
-  .anim-pulse { animation: pulseRing 1.4s infinite; transform-box: fill-box; transform-origin: center; }
-  .anim-wave-1 { animation: waveUp 1.5s infinite; transform-box: fill-box; transform-origin: center; }
-  .anim-wave-2 { animation: waveUp 1.5s 0.45s infinite; transform-box: fill-box; transform-origin: center; }
-  .anim-siren-r { animation: sirenRed 0.45s infinite; }
-  .anim-siren-b { animation: sirenBlue 0.45s infinite; }
-  .anim-car-go-r { animation: driveClearRight 2.4s ease-in-out infinite; }
-  .anim-car-go-d { animation: driveClearDown 2.4s ease-in-out infinite; }
-  .anim-float { animation: floatPoints 1.8s ease-in-out infinite; }
-  .anim-pop { animation: popBadge 0.55s ease forwards; transform-box: fill-box; transform-origin: center; }
-
-  /* AI Pipeline */
-  .pipeline {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: clamp(8px, 1.4vw, 14px);
-    width: 100%;
-    margin-top: clamp(6px, 1vh, 12px);
-  }
-  .pipe-step {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 15px;
-    padding: clamp(10px, 1.8vh, 18px) clamp(10px, 1.4vw, 16px);
-    position: relative;
-  }
-  .pipe-num {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--accent);
-    margin-bottom: 6px;
-    letter-spacing: 0.08em;
-  }
-  .pipe-step h3 {
-    font-size: clamp(13px, 1.55vw, 17px);
-    margin-bottom: 5px;
-  }
-  .pipe-step p {
-    font-size: clamp(11px, 1.25vw, 13.5px);
-    color: var(--muted);
-    line-height: 1.38;
-  }
-
-  /* End slide */
-  .cta-box {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: clamp(14px, 2.5vh, 26px);
-    padding: 12px 20px;
-    border-radius: 16px;
-    background: var(--surface);
-    border: 1px solid rgba(196, 165, 255, 0.35);
-    font-size: clamp(14px, 2vw, 21px);
-    font-weight: 700;
-    color: var(--accent);
-  }
-
-  /* Tap hint */
-  .tap-hint {
-    position: fixed;
-    bottom: 8px;
-    right: 14px;
-    font-size: 11px;
-    color: rgba(166, 155, 194, 0.55);
-    pointer-events: none;
-    z-index: 40;
-  }
-
-  /* Presenter Notes Modal */
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(8, 6, 14, 0.78);
-    backdrop-filter: blur(6px);
-    z-index: 100;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
-  .modal-backdrop.open { display: flex; }
-  .modal-box {
-    background: var(--surface);
-    border: 1px solid rgba(196, 165, 255, 0.3);
-    border-radius: 18px;
-    max-width: 560px;
-    width: 100%;
-    padding: 18px 20px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
-  }
-  .modal-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-  .modal-body {
-    font-size: 14px;
-    line-height: 1.58;
-    color: #e4ddf5;
-  }
-
-  /* Mobile Portrait Responsiveness (zero vertical scroll) */
-  @media (max-width: 768px) {
-    .grid-3 {
-      grid-template-columns: 1fr;
-      gap: 8px;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iași SafeFlow — Pitch Echipa Synaptik (v0.4.1)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #06050b;
+      color: #f6f5fa;
+      -webkit-font-smoothing: antialiased;
     }
-    .grid-2 {
-      grid-template-columns: 1fr;
+
+    .tabular { font-variant-numeric: tabular-nums; }
+    code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.9em; }
+
+    .deck-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 20px;
+    }
+
+    /* Main 16:9 Stage */
+    .pitch-stage {
+      width: 100%;
+      max-width: 1320px;
+      min-height: 740px;
+      border-radius: 24px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 28px 44px 22px;
+      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .top-progress {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      z-index: 5;
+    }
+    .top-progress-fill {
+      height: 100%;
+      width: 12.5%;
+      background: linear-gradient(90deg, #7c3aed 0%, #34d399 100%);
+      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Dark-Tech Rafinat (default) */
+    .pitch-stage.is-dark {
+      --st-bg: #090812;
+      --st-surface: #131022;
+      --st-surface-2: #191530;
+      --st-border: rgba(255, 255, 255, 0.10);
+      --st-border-strong: rgba(182, 156, 255, 0.30);
+      --st-text: #F6F5FA;
+      --st-muted: #A09AB8;
+      --st-accent: #B69CFF;
+      --st-accent-solid: #7C3AED;
+      --st-accent-soft: rgba(124, 58, 237, 0.18);
+      --st-accent-soft-text: #D6C8FF;
+      --st-good: #34D399;
+      --st-good-soft: rgba(16, 185, 129, 0.15);
+      --st-warn: #FBBF24;
+      --st-warn-soft: rgba(251, 191, 36, 0.14);
+      --st-red: #F87171;
+      --st-red-soft: rgba(239, 68, 68, 0.16);
+      --st-grid: rgba(255, 255, 255, 0.038);
+      --st-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+      --st-top-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      background-color: var(--st-bg);
+      background-image:
+        radial-gradient(680px 400px at 8% 4%, rgba(109, 64, 212, 0.24), transparent 72%),
+        radial-gradient(560px 380px at 94% 92%, rgba(16, 185, 129, 0.12), transparent 70%),
+        linear-gradient(to right, var(--st-grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--st-grid) 1px, transparent 1px);
+      background-size: auto, auto, 26px 26px, 26px 26px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--st-text);
+      box-shadow: var(--st-shadow);
+    }
+
+    /* Optional Light-Clean room-glare fallback */
+    .pitch-stage.is-light {
+      --st-bg: #F5F3FB;
+      --st-surface: #FFFFFF;
+      --st-surface-2: #FAF9FE;
+      --st-border: #E2DDF0;
+      --st-border-strong: #C4B5FD;
+      --st-text: #19142B;
+      --st-muted: #5A5370;
+      --st-accent: #5B32B8;
+      --st-accent-solid: #6941C6;
+      --st-accent-soft: #ECE5FB;
+      --st-accent-soft-text: #4B289E;
+      --st-good: #0B7A53;
+      --st-good-soft: #DCFCE7;
+      --st-warn: #9A4508;
+      --st-warn-soft: #FFEDD5;
+      --st-red: #B91C1C;
+      --st-red-soft: #FEE2E2;
+      --st-grid: rgba(34, 28, 53, 0.04);
+      --st-shadow: 0 24px 60px -16px rgba(34, 28, 53, 0.16);
+      --st-top-sheen: 0 10px 28px -10px rgba(34, 28, 53, 0.09);
+      background-color: var(--st-bg);
+      background-image:
+        radial-gradient(640px 380px at 8% 4%, rgba(105, 65, 198, 0.08), transparent 72%),
+        radial-gradient(520px 360px at 94% 92%, rgba(11, 122, 83, 0.05), transparent 70%),
+        linear-gradient(to right, var(--st-grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--st-grid) 1px, transparent 1px);
+      background-size: auto, auto, 26px 26px, 26px 26px;
+      border: 1px solid #DDD7EC;
+      color: var(--st-text);
+      box-shadow: var(--st-shadow);
+    }
+
+    /* HUD */
+    .stage-hud {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--st-border);
+      font-size: 12.5px;
+    }
+
+    .hud-brand {
+      display: inline-flex;
+      align-items: center;
       gap: 10px;
+      font-weight: 700;
+      color: var(--st-text);
     }
-    .pipeline {
-      grid-template-columns: repeat(2, 1fr);
+
+    .brand-dot {
+      width: 26px; height: 26px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #6941C6 0%, #0E8A86 100%);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #ffffff;
+    }
+
+    .hud-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       gap: 8px;
     }
-    .phone-mock {
-      max-width: 100%;
-      padding: 8px 10px;
+
+    .hud-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 11px;
+      border-radius: 10px;
+      background: var(--st-surface);
+      border: 1px solid var(--st-border);
+      color: var(--st-text);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.1s ease;
+    }
+
+    .hud-btn:hover { border-color: var(--st-accent); }
+    .hud-btn:active { transform: scale(0.98); }
+    .hud-btn.timer-on { border-color: var(--st-good); color: var(--st-good); background: var(--st-good-soft); }
+    .hud-btn svg { width: 14px; height: 14px; }
+
+    /* Viewport */
+    .slide-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 20px 0 14px;
+    }
+
+    .slide-panel { display: none; }
+    .slide-panel.active { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(13px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes kenBurns {
+      0% { transform: scale(1.0) translate(0, 0); }
+      50% { transform: scale(1.06) translate(-1%, -0.5%); }
+      100% { transform: scale(1.0) translate(0, 0); }
+    }
+    @keyframes flowDash {
+      to { stroke-dashoffset: -28; }
+    }
+    @keyframes barFill {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    .animating .anim-item { animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .animating .d1 { animation-delay: 0.05s; }
+    .animating .d2 { animation-delay: 0.14s; }
+    .animating .d3 { animation-delay: 0.24s; }
+    .animating .d4 { animation-delay: 0.34s; }
+    .animating .d5 { animation-delay: 0.44s; }
+    .ken-burns { animation: kenBurns 14s ease-in-out infinite; }
+    .flow-line { stroke-dasharray: 6 8; animation: flowDash 1.4s linear infinite; }
+    .animating .bar-grow { transform-origin: left center; animation: barFill 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both; }
+
+    /* Typography & Layout Primitives */
+    .kicker-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--st-accent-soft);
+      color: var(--st-accent-soft-text);
+      border: 1px solid var(--st-border-strong);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .h1-hero {
+      font-size: 40px;
+      line-height: 1.09;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin: 0 0 14px;
+      color: var(--st-text);
+    }
+
+    .h2-slide {
+      font-size: 31px;
+      line-height: 1.14;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0 0 16px;
+      color: var(--st-text);
+    }
+
+    .lead-copy {
+      font-size: 16px;
+      line-height: 1.52;
+      color: var(--st-muted);
+      margin: 0 0 18px;
+      max-width: 58ch;
+    }
+
+    .st-card {
+      background: var(--st-surface);
+      border: 1px solid var(--st-border);
       border-radius: 16px;
+      padding: 15px 17px;
+      box-shadow: var(--st-top-sheen);
     }
-    .hide-mobile { display: none !important; }
-    .svg-stage {
-      aspect-ratio: 16 / 10;
-      max-height: 40vh;
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--st-text);
+      margin-bottom: 8px;
     }
-    .point-item {
-      padding: 8px 10px;
+
+    .icon-badge {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: var(--st-accent-soft);
+      color: var(--st-accent-soft-text);
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
     }
-    .card {
-      padding: 10px 12px;
+
+    .body-sm { font-size: 13px; line-height: 1.46; color: var(--st-muted); margin: 0; }
+    .body-sm strong { color: var(--st-text); font-weight: 700; }
+
+    /* Grid layouts per slide */
+    .grid-hero { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 30px; align-items: center; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+
+    /* Slide 1 Street visual */
+    .street-box {
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid var(--st-border-strong);
+      background: var(--st-surface);
+      position: relative;
+      box-shadow: var(--st-shadow);
     }
-  }
-</style>
+    .street-img-wrap { height: 340px; overflow: hidden; position: relative; }
+    .street-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .street-tag {
+      position: absolute; top: 12px; left: 12px;
+      padding: 5px 10px; border-radius: 999px;
+      background: rgba(9, 8, 18, 0.82); color: #F87171;
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      font-size: 11px; font-weight: 800;
+    }
+    .street-foot {
+      padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      font-size: 12.5px; color: var(--st-muted);
+      border-top: 1px solid var(--st-border);
+    }
+
+    /* Slide 2 Video Theater */
+    .video-shell {
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--st-border-strong);
+      background: #06050b;
+      box-shadow: var(--st-shadow);
+    }
+    .chapter-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      margin-top: 12px;
+    }
+    .chap-btn {
+      padding: 7px 12px;
+      border-radius: 10px;
+      background: var(--st-surface);
+      border: 1px solid var(--st-border);
+      color: var(--st-text);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .chap-btn:hover { border-color: var(--st-accent); color: var(--st-accent); }
+
+    /* Slide 3 Pipeline */
+    .pipeline-grid { display: grid; grid-template-columns: 1.02fr 0.72fr 1.12fr; gap: 16px; }
+    .mini-signal {
+      padding: 9px 11px;
+      border-radius: 11px;
+      background: var(--st-surface-2);
+      border: 1px solid var(--st-border);
+      font-size: 12px;
+      line-height: 1.38;
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .score-hero-box {
+      padding: 12px 14px; border-radius: 13px;
+      background: var(--st-accent-soft); border: 1px solid var(--st-border-strong);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .dossier-paper {
+      padding: 12px 13px; border-radius: 12px;
+      background: var(--st-surface-2); border: 1px dashed var(--st-border-strong);
+      font-size: 11.8px; line-height: 1.44;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+
+    /* Slide 4 Ladder */
+    .ladder-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 9px 12px;
+      border-radius: 11px;
+      background: var(--st-surface-2);
+      border: 1px solid var(--st-border);
+      font-size: 12.5px;
+    }
+    .pts-pill {
+      padding: 3px 9px; border-radius: 8px;
+      background: var(--st-good-soft); color: var(--st-good);
+      font-weight: 800; font-size: 12px; flex-shrink: 0;
+    }
+    .pts-pill.warn { background: var(--st-red-soft); color: var(--st-red); }
+    .pts-pill.purp { background: var(--st-accent-soft); color: var(--st-accent-soft-text); }
+
+    /* Slide 5 & 6 Economics / Investment */
+    .price-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .price-chip { padding: 8px 10px; border-radius: 10px; background: var(--st-surface-2); border: 1px solid var(--st-border); }
+    .margin-track { height: 9px; border-radius: 999px; background: var(--st-surface-2); border: 1px solid var(--st-border); overflow: hidden; margin: 9px 0 6px; }
+    .margin-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--st-accent-solid), var(--st-good)); }
+
+    .bottom-strip {
+      margin-top: 12px;
+      padding: 11px 15px;
+      border-radius: 13px;
+      background: var(--st-surface);
+      border: 1px solid var(--st-border);
+      display: grid;
+      grid-template-columns: 0.95fr 1.35fr;
+      gap: 14px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--st-muted);
+    }
+    .comp-pill { padding: 4px 8px; border-radius: 7px; background: var(--st-surface-2); border: 1px solid var(--st-border); font-size: 11.2px; }
+
+    /* Slide 6 Donut & 24m Chart */
+    .s6-top { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 14px; }
+    .donut-wrap { display: flex; align-items: center; gap: 16px; }
+    .legend-list { display: flex; flex-direction: column; gap: 6px; flex: 1; font-size: 12px; }
+    .leg-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--st-muted); }
+    .leg-dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 6px; }
+
+    .timeline-strip {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px;
+    }
+    .tl-node {
+      padding: 8px 10px; border-radius: 10px;
+      background: var(--st-surface-2); border: 1px solid var(--st-border);
+      font-size: 11.5px; line-height: 1.35;
+    }
+
+    .proj-bars { display: flex; flex-direction: column; gap: 7px; margin-top: 6px; }
+    .proj-row { font-size: 11.5px; }
+    .proj-track { height: 8px; border-radius: 999px; background: var(--st-surface-2); border: 1px solid var(--st-border); overflow: hidden; margin-top: 3px; }
+    .proj-fill { height: 100%; border-radius: 999px; }
+
+    .impact-line {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: var(--st-accent-soft);
+      border: 1px solid var(--st-border-strong);
+      font-size: 12.5px;
+      color: var(--st-accent-soft-text);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    /* Footer */
+    .stage-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--st-border);
+      font-size: 12px;
+      color: var(--st-muted);
+    }
+    .slide-dots { display: flex; align-items: center; gap: 6px; }
+    .s-dot {
+      height: 7px; width: 20px; border-radius: 999px;
+      background: var(--st-border); border: 0; padding: 0; cursor: pointer;
+      transition: width 0.25s ease, background-color 0.25s ease;
+    }
+    .s-dot.active { width: 38px; background: var(--st-accent); }
+
+    /* Presenter Notes Modal */
+    .notes-backdrop {
+      position: fixed; inset: 0; z-index: 50;
+      background: rgba(5, 4, 10, 0.78);
+      display: none; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .notes-backdrop.open { display: flex; }
+    .notes-card {
+      width: 100%; max-width: 660px;
+      border-radius: 20px;
+      background: #141124; color: #F6F5FA;
+      border: 1px solid rgba(182, 156, 255, 0.35);
+      padding: 22px 24px;
+      box-shadow: 0 30px 70px rgba(0,0,0,0.7);
+    }
+
+    @media (max-width: 980px) {
+      .pitch-stage { padding: 20px; min-height: auto; }
+      .grid-hero, .grid-3, .grid-2, .pipeline-grid, .bottom-strip, .s6-top, .timeline-strip { grid-template-columns: 1fr; }
+      .h1-hero { font-size: 29px; }
+      .h2-slide { font-size: 23px; }
+      .donut-wrap { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
 </head>
 <body>
+  <div class="deck-shell">
+    <main id="stage" class="pitch-stage is-dark animating" aria-live="polite">
+      <div class="top-progress"><div id="topProgressFill" class="top-progress-fill"></div></div>
 
-<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <!-- HUD -->
+      <header class="stage-hud">
+        <div class="hud-brand">
+          <span class="brand-dot" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          <span>IAȘI SAFEFLOW</span>
+          <span style="opacity:0.4;">/</span>
+          <span style="color:var(--st-muted);font-weight:600;">Echipa Synaptik • v0.4.1</span>
+        </div>
 
-<header class="hud no-advance">
-  <div class="hud-group">
-    <button class="hud-btn" id="btnPrev" title="Înapoi (←)">← Înapoi</button>
-    <span class="hud-counter" id="slideCounter">01 / 09</span>
+        <div class="hud-actions tabular">
+          <button type="button" class="hud-btn" onclick="prevSlide()" aria-label="Slide anterior">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+            Înapoi
+          </button>
+          <span id="hudCounter" style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;padding:0 4px;">01 / 08</span>
+          <button type="button" class="hud-btn" onclick="nextSlide()" aria-label="Slide următor">
+            Înainte
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button id="timerBtn" type="button" class="hud-btn" onclick="toggleTimer()" title="Cronometru pitch 5 minute">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="timerText">05:00</span>
+          </button>
+          <button type="button" class="hud-btn" onclick="toggleNotes()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Note
+          </button>
+          <button id="themeBtn" type="button" class="hud-btn" onclick="toggleTheme()" title="Schimbă contrast sală">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+            <span id="themeLabel">Luminos</span>
+          </button>
+          <button type="button" class="hud-btn" onclick="toggleFullscreen()" title="Ecran complet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="slide-viewport">
+        <!-- SLIDE 1: HOOK & PROBLEMA -->
+        <section id="slide-1" class="slide-panel active">
+          <div class="grid-hero">
+            <div>
+              <div class="kicker-pill anim-item d1">01 • Hook &amp; Problema • Echipa Synaptik</div>
+              <h1 class="h1-hero anim-item d2">
+                Între 112 și o petiție uitată 30 de zile există un gol periculos.
+              </h1>
+              <p class="lead-copy anim-item d3">
+                Iași SafeFlow transformă observațiile din trafic în dosare verificate și prioritizate pentru primărie — în ~45 de secunde, fără a încărca linia de urgență.
+              </p>
+              <div class="grid-3 anim-item d4">
+                <div class="st-card">
+                  <div class="card-head">
+                    <span class="icon-badge" style="background:var(--st-red-soft);color:var(--st-red);">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                    </span>
+                    112 blocat
+                  </div>
+                  <p class="body-sm">O groapă sau o trecere blocată fără răniți nu ține de 112, dar creează riscuri zilnice.</p>
+                </div>
+                <div class="st-card">
+                  <div class="card-head">
+                    <span class="icon-badge">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                    </span>
+                    Triaj lent
+                  </div>
+                  <p class="body-sm">Sesizările dispersate pe email, telefon și Facebook generează zeci de duplicate neprioritizate.</p>
+                </div>
+                <div class="st-card">
+                  <div class="card-head">
+                    <span class="icon-badge" style="background:var(--st-warn-soft);color:var(--st-warn);">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </span>
+                    Zero feedback
+                  </div>
+                  <p class="body-sm">Fără status public și fără recunoaștere, cetățenii renunță să mai raporteze.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="street-box anim-item d3">
+              <div class="street-img-wrap">
+                <img src="./pitch-assets/pothole-before.png" alt="Groapă pe trecerea de pietoni din Iași" class="ken-burns" />
+                <span class="street-tag">PROBLEMA REALĂ ÎN TRAFIC • IAȘI</span>
+              </div>
+              <div class="street-foot">
+                <span><strong style="color:var(--st-text);">Observație preventivă</strong> • Lângă trecerea de pietoni</span>
+                <span style="color:var(--st-accent);font-weight:700;">Demo video pe slide-ul 02 →</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 2: SHOWCASE VIDEO -->
+        <section id="slide-2" class="slide-panel">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:10px;">
+            <div>
+              <div class="kicker-pill anim-item d1" style="margin-bottom:6px;">02 • Demonstrație completă (45 secunde)</div>
+              <h2 class="h2-slide anim-item d2" style="margin-bottom:0;">De pe stradă în dosarul Primăriei — fluxul real v0.4.1</h2>
+            </div>
+            <button type="button" class="chap-btn" onclick="jumpVideo(0)" style="border-color:var(--st-accent);">Reia de la 0:00</button>
+          </div>
+
+          <div class="video-shell anim-item d2">
+            <video id="storyVideo" src="./pitch-assets/safeflow-story.webm" controls playsinline preload="metadata" style="width:100%;max-height:465px;display:block;background:#07060d;"></video>
+          </div>
+
+          <div class="chapter-bar anim-item d3">
+            <button type="button" class="chap-btn" onclick="jumpVideo(0)">Act 1 • Stradă: Pericolul (0:00)</button>
+            <button type="button" class="chap-btn" onclick="jumpVideo(4.4)">Act 2 • Aplicația cetățeanului (0:04)</button>
+            <button type="button" class="chap-btn" onclick="jumpVideo(18.0)">Act 3 • Triaj AI &amp; Dosar (0:18)</button>
+            <button type="button" class="chap-btn" onclick="jumpVideo(32.5)">Act 4 • Strada reparată &amp; +50 Puncte (0:32)</button>
+          </div>
+        </section>
+
+        <!-- SLIDE 3: AI HUMAN-IN-THE-LOOP -->
+        <section id="slide-3" class="slide-panel">
+          <div class="kicker-pill anim-item d1">03 • Arhitectura AI (asistent-reguli-v2)</div>
+          <h2 class="h2-slide anim-item d2">Din 5 sesizări haotice → 1 dosar oficial prioritizat</h2>
+
+          <div class="pipeline-grid">
+            <div class="st-card anim-item d2" style="display:flex;flex-direction:column;gap:9px;">
+              <div class="card-head" style="justify-content:space-between;border-bottom:1px solid var(--st-border);padding-bottom:8px;">
+                <span>1. Semnale din teren</span>
+                <span style="font-size:11px;color:var(--st-accent);">BRUT</span>
+              </div>
+              <div class="mini-signal"><strong>Groapă adâncă lângă școală</strong> — geolocalizare ~100 m pe harta publică.</div>
+              <div class="mini-signal"><strong>Confirmări (+1)</strong> — vecini + Contributor de Încredere (greutate 2×).</div>
+              <div class="mini-signal"><strong>2 fotografii atașate</strong> — comprimate, EXIF șters, vizibile doar recenzentului.</div>
+              <div class="mini-signal" style="border-color:var(--st-border-strong);"><strong>Plăcuță „IS-12-XYZ” în text</strong> — ascunsă automat din public până la verificarea omului.</div>
+            </div>
+
+            <div class="st-card anim-item d3" style="display:flex;flex-direction:column;justify-content:space-between;gap:10px;">
+              <div class="card-head" style="justify-content:space-between;border-bottom:1px solid var(--st-border);padding-bottom:8px;">
+                <span>2. Motor AI</span>
+                <span style="font-size:11px;color:var(--st-good);">0 LEI COST API</span>
+              </div>
+              <svg width="100%" height="22" viewBox="0 0 240 22"><line x1="6" y1="11" x2="226" y2="11" stroke="var(--st-accent)" stroke-width="2.4" class="flow-line"/><polygon points="222,5 234,11 222,17" fill="var(--st-accent)"/></svg>
+              <div class="mini-signal"><strong>TF-IDF 150 m deduplicare:</strong> leagă sesizările similare din ultimele 30 de zile.</div>
+              <div class="mini-signal"><strong>Protecție PII &amp; 112:</strong> detectează numere auto, telefoane și posibile urgențe.</div>
+              <div class="mini-signal"><strong>Scor explicabil 0–100:</strong> fiecare factor e justificat sub „De ce?”, fără cutie neagră.</div>
+              <svg width="100%" height="22" viewBox="0 0 240 22"><line x1="6" y1="11" x2="226" y2="11" stroke="var(--st-good)" stroke-width="2.4" class="flow-line"/><polygon points="222,5 234,11 222,17" fill="var(--st-good)"/></svg>
+            </div>
+
+            <div class="st-card anim-item d4" style="display:flex;flex-direction:column;gap:10px;">
+              <div class="card-head" style="justify-content:space-between;border-bottom:1px solid var(--st-border);padding-bottom:8px;">
+                <span>3. Decizie om &amp; Dosar PDF</span>
+                <span style="font-size:11px;color:var(--st-good);">AUDIT APPEND-ONLY</span>
+              </div>
+              <div class="score-hero-box">
+                <div>
+                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--st-accent-soft-text);">Prioritate sugerată</div>
+                  <div style="font-size:15px;font-weight:800;">Ridicată (Pietoni/Școală + Foto)</div>
+                </div>
+                <div style="font-size:32px;font-weight:800;" class="tabular"><span id="scoreCounter">85</span><span style="font-size:14px;opacity:0.65;">/100</span></div>
+              </div>
+              <div class="dossier-paper">
+                <div style="display:flex;justify-content:space-between;"><strong>DOSAR SESIZARE • SF-LF8RNCPH</strong><span style="color:var(--st-good);font-weight:800;">Validat</span></div>
+                <div style="color:var(--st-muted);"><strong style="color:var(--st-text);">Către:</strong> Primăria Iași / Administratorul drumului</div>
+                <div style="color:var(--st-muted);"><strong style="color:var(--st-text);">Conținut:</strong> coordonate exacte, confirmări, comentarii aprobate, dovadă foto internă și istoric audit.</div>
+                <div style="padding:6px 8px;border-radius:8px;background:var(--st-accent-soft);color:var(--st-accent-soft-text);font-weight:700;">Document pregătit pentru înregistrare (netrimis automat).</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 4: RETENTION & ACCESSIBILITY -->
+        <section id="slide-4" class="slide-panel">
+          <div class="kicker-pill anim-item d1">04 • Retenție fără spam &amp; Accesibilitate universală</div>
+          <h2 class="h2-slide anim-item d2">Comunitate implicată real, accesibilă tuturor</h2>
+
+          <div class="grid-2">
+            <div class="st-card anim-item d2" style="display:flex;flex-direction:column;gap:8px;">
+              <div class="card-head">
+                <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+                Puncte Civice anti-spam (doar după validarea omului)
+              </div>
+              <div class="ladder-row"><span>La simpla trimitere sau raport respins</span><span class="pts-pill warn tabular">0 pct</span></div>
+              <div class="ladder-row"><span>Raport validat + descriere detaliată + foto</span><span class="pts-pill tabular">+25 pct</span></div>
+              <div class="ladder-row"><span>Confirmare (+1) validată / comentariu aprobat</span><span class="pts-pill tabular">+5 pct</span></div>
+              <div class="ladder-row"><span>Raport ajuns „Pregătit” sau „Rezolvat”</span><span class="pts-pill tabular">+25 pct</span></div>
+              <div class="ladder-row" style="border-color:var(--st-border-strong);">
+                <span><strong>Susține prioritar</strong> în coada recenzorului</span>
+                <span class="pts-pill purp tabular">50 pct</span>
+              </div>
+              <div class="ladder-row" style="border-color:var(--st-border-strong);">
+                <span><strong>Contributor de Încredere</strong> (confirmări 2×)</span>
+                <span class="pts-pill purp tabular">100 pct câștigate</span>
+              </div>
+            </div>
+
+            <div class="st-card anim-item d3" style="display:flex;flex-direction:column;gap:10px;">
+              <div class="card-head">
+                <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg></span>
+                Accesibilitate și confidențialitate din construcție
+              </div>
+              <div class="mini-signal"><strong>Mod cititor de ecran (nevăzători):</strong> formular dedicat „Pasul X din 5”, listă ordonată după distanță și buton „Citește cu voce tare”.</div>
+              <div class="mini-signal"><strong>Contrast ridicat WCAG 7:1 &amp; Text mare 1.3×:</strong> litere pe markerii hărții și vibrații haptice la trimitere / oprire 112.</div>
+              <div class="mini-signal"><strong>Comentarii moderate + Fotografii private:</strong> actualizările scrise devin publice doar după aprobare; pozele sunt exclusiv interne.</div>
+              <div class="mini-signal"><strong>Căutare explicită de străzi:</strong> coordonate rotunjite (~10 m) trimise spre OpenStreetMap Nominatim, fără tracking continuu.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 5: BUSINESS MODEL ("Cine plătește, cât și de ce") -->
+        <section id="slide-5" class="slide-panel">
+          <div class="kicker-pill anim-item d1">05 • Modelul de business &amp; Piața (B2G SaaS)</div>
+          <h2 class="h2-slide anim-item d2">Cine plătește, cât și de ce</h2>
+
+          <div class="grid-2">
+            <div class="st-card anim-item d2">
+              <div class="card-head">
+                <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg></span>
+                Client plătitor &amp; Model unic de venit
+              </div>
+              <p class="body-sm">
+                <strong>Cetățeanul folosește gratuit.</strong> Clientul care plătește este <strong>Primăria (UAT)</strong>.<br/>
+                <strong>Model unic: Abonament anual SaaS B2G</strong> poziționat sub pragul de <strong>achiziție directă SEAP</strong> (<span class="tabular">270.120 lei</span>) — primăria poate contracta rapid, fără licitații de 9 luni.
+              </p>
+            </div>
+
+            <div class="st-card anim-item d2">
+              <div class="card-head">
+                <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+                Preț și logica lui <span style="font-size:11px;color:var(--st-muted);font-weight:600;">(ipoteză comercială)</span>
+              </div>
+              <div class="price-pair tabular">
+                <div class="price-chip">
+                  <div style="font-size:16px;font-weight:800;">1.500 lei<span style="font-size:11px;color:var(--st-muted);font-weight:600;">/lună</span></div>
+                  <div style="font-size:11px;color:var(--st-muted);">18.000 lei/an • Comună / Oraș</div>
+                </div>
+                <div class="price-chip">
+                  <div style="font-size:16px;font-weight:800;">4.000 lei<span style="font-size:11px;color:var(--st-muted);font-weight:600;">/lună</span></div>
+                  <div style="font-size:11px;color:var(--st-muted);">48.000 lei/an • Municipiu</div>
+                </div>
+              </div>
+              <p class="body-sm">
+                <strong>De ce plătesc X:</strong> triajul manual consumă <span class="tabular">6.000–9.000 lei/lună</span> timp salarial, iar <strong>un singur dosar de daună auto</strong> costă primăria <span class="tabular">10.000–35.000+ lei</span>.
+              </p>
+            </div>
+
+            <div class="st-card anim-item d3">
+              <div class="card-head">
+                <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></span>
+                Cost per client &amp; Marjă rezultată
+              </div>
+              <p class="body-sm">
+                Motorul actual <code>asistent-reguli-v2</code> are <strong>0 lei cost API AI</strong>; cloud UE + stocare foto + geocodare = <strong class="tabular">~180 lei/lună/UAT</strong> <em>(ipoteză)</em>.
+              </p>
+              <div class="margin-track"><div class="margin-fill bar-grow" style="width:88%;"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;" class="tabular">
+                <span style="color:var(--st-good);">Marjă brută estimată: ~88%</span>
+                <span style="color:var(--st-muted);">Cost servire &lt; 12%</span>
+              </div>
+            </div>
+
+            <div class="st-card anim-item d3">
+              <div class="card-head">
+                <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+                Piața bottom-up &amp; Primii 10 clienți
+              </div>
+              <p class="body-sm tabular">
+                <strong>Iași + ZMI:</strong> (1 mun. × 48k) + (24 UAT × 18k) = <strong>480.000 lei/an</strong><br/>
+                <strong>România:</strong> 103 mun. + ~350 orașe/comune mari = <strong>~11,2 mil. lei/an</strong><br/>
+                <strong>Primii 10 clienți:</strong> Comunele din Zona Metropolitană Iași (Miroslava, Valea Lupului, Ciurea, Rediu) prin <strong>pilot gratuit 60 zile</strong> → conversie SEAP.
+              </p>
+            </div>
+          </div>
+
+          <div class="bottom-strip anim-item d4">
+            <div>
+              <strong style="color:var(--st-text);">Dovadă de validare:</strong> Prototip <strong style="color:var(--st-text);">v0.4.1</strong> live și validat tehnic (<span class="tabular">250</span> teste automate, audit WCAG <span class="tabular">7:1</span>); pregătit pentru piloți B2G.
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <span class="comp-pill"><strong style="color:var(--st-text);">Email / Excel:</strong> haos, fără deduplicare</span>
+              <span class="comp-pill"><strong style="color:var(--st-text);">App primărie clasic:</strong> fără AI, fără 112</span>
+              <span class="comp-pill"><strong style="color:var(--st-text);">Waze:</strong> dispare în 30 min, fără dosar</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 6: FUNDING, TIMELINE, PROJECTION & LEGAL ("Suma, folosirea ei și ce se întâmplă în 12 luni") -->
+        <section id="slide-6" class="slide-panel">
+          <div class="kicker-pill anim-item d1">06 • Finanțare, 12–24 luni &amp; Structură legală</div>
+          <h2 class="h2-slide anim-item d2">Suma, folosirea ei și ce se întâmplă în 12 luni</h2>
+
+          <div class="s6-top">
+            <!-- Left: Requested Sum Donut + 12m Roadmap -->
+            <div class="st-card anim-item d2">
+              <div class="card-head" style="justify-content:space-between;">
+                <span>Buget cerut: <strong style="color:var(--st-accent);" class="tabular">15.000 EUR (~75.000 lei)</strong></span>
+                <span style="font-size:11px;color:var(--st-muted);">12 luni</span>
+              </div>
+              <div class="donut-wrap">
+                <svg width="118" height="118" viewBox="0 0 42 42" style="flex-shrink:0;transform:rotate(-90deg);">
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.08)" stroke-width="5"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#7C3AED" stroke-width="5" stroke-dasharray="45 55" stroke-dashoffset="0"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#34D399" stroke-width="5" stroke-dasharray="25 75" stroke-dashoffset="-45"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#38BDF8" stroke-width="5" stroke-dasharray="15 85" stroke-dashoffset="-70"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#FBBF24" stroke-width="5" stroke-dasharray="15 85" stroke-dashoffset="-85"/>
+                </svg>
+                <div class="legend-list tabular">
+                  <div class="leg-item"><span><span class="leg-dot" style="background:#7C3AED;"></span>Dezvoltare multi-UAT &amp; mobil</span><strong>45% (33.750 lei)</strong></div>
+                  <div class="leg-item"><span><span class="leg-dot" style="background:#34D399;"></span>Piloți &amp; primii 10 clienți ZMI</span><strong>25% (18.750 lei)</strong></div>
+                  <div class="leg-item"><span><span class="leg-dot" style="background:#38BDF8;"></span>Infrastructură Cloud UE &amp; AI</span><strong>15% (11.250 lei)</strong></div>
+                  <div class="leg-item"><span><span class="leg-dot" style="background:#FBBF24;"></span>Juridic, GDPR, SRL &amp; SEAP</span><strong>15% (11.250 lei)</strong></div>
+                </div>
+              </div>
+              <div class="timeline-strip tabular">
+                <div class="tl-node"><strong style="color:var(--st-accent);">L1–L3</strong><br/>2 piloți gratuiți ZMI + cadru GDPR</div>
+                <div class="tl-node"><strong style="color:var(--st-accent);">L4–L6</strong><br/>Multi-oraș + 3 UAT plătitoare</div>
+                <div class="tl-node"><strong style="color:var(--st-accent);">L7–L9</strong><br/>6 UAT active + SLA dispecerat</div>
+                <div class="tl-node"><strong style="color:var(--st-good);">L10–L12</strong><br/>10 UAT (~17.5k lei/lună MRR*)</div>
+              </div>
+            </div>
+
+            <!-- Right: 12-24m Projection + Team/Legal -->
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div class="st-card anim-item d3">
+                <div class="card-head" style="justify-content:space-between;">
+                  <span>Proiecție 12–24 luni <span style="font-size:11px;color:var(--st-muted);font-weight:600;">(*toate cifrele: ipoteză)</span></span>
+                </div>
+                <div class="proj-bars tabular">
+                  <div class="proj-row">
+                    <div style="display:flex;justify-content:space-between;"><span><strong>Prudent</strong> • An 1: 54k lei venit / 48k cost → <strong>An 2: 276k venit</strong> / 115k cost</span></div>
+                    <div class="proj-track"><div class="proj-fill bar-grow" style="width:46%;background:#B69CFF;"></div></div>
+                  </div>
+                  <div class="proj-row">
+                    <div style="display:flex;justify-content:space-between;"><span><strong>Optimist</strong> • An 1: 126k lei venit / 64k cost → <strong>An 2: 630k venit</strong> / 195k cost</span></div>
+                    <div class="proj-track"><div class="proj-fill bar-grow" style="width:94%;background:linear-gradient(90deg,#7C3AED,#34D399);"></div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="st-card anim-item d4">
+                <div class="card-head">
+                  <span class="icon-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+                  Echipă, proprietate &amp; semnătură legală (minori)
+                </div>
+                <p class="body-sm">
+                  Deținut și dezvoltat integral de <strong>Echipa Synaptik</strong>. Fiind o echipă de minori, semnarea acordurilor de finanțare și a piloților este asigurată de <strong>reprezentantul legal adult (părinte / tutore legal desemnat)</strong>; la conversia primelor abonamente B2G, opțiunea planificată este înființarea unui <strong>SRL</strong> cu administrator adult desemnat până la majorat.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-line anim-item d5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span><strong>Impact măsurabil:</strong> Reducerea timpului de triaj al pericolelor rutiere de la 30 de zile la sub 24 de ore și remedierea a 500+ puncte de risc lângă școli și treceri de pietoni în primele 12 luni (țintă pilot).</span>
+          </div>
+        </section>
+
+        <!-- SLIDE 7: TRACTION / BUILT NOW -->
+        <section id="slide-7" class="slide-panel">
+          <div class="kicker-pill anim-item d1">07 • Dovadă de execuție</div>
+          <h2 class="h2-slide anim-item d2">Nu prezentăm doar idei — totul rulează deja în v0.4.1</h2>
+
+          <div class="grid-2">
+            <div class="st-card anim-item d2">
+              <div class="card-head"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tabular">250</span> teste automate backend</div>
+              <p class="body-sm">Suite <code>pytest</code> trece complet: bariera 112, deduplicare TF-IDF, curățare EXIF JPEG/PNG/WebP, moderare comentarii, puncte anti-spam și audit log imutabil.</p>
+            </div>
+            <div class="st-card anim-item d2">
+              <div class="card-head"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>0 erori de accesibilitate WCAG</div>
+              <p class="body-sm">Auditat automat cu <code>axe-core</code> pe temele luminos, întunecat, contrast ridicat 7:1, text mare 1.3× și mod TalkBack pas cu pas.</p>
+            </div>
+            <div class="st-card anim-item d3">
+              <div class="card-head"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>Web PWA + APK Android semnat</div>
+              <p class="body-sm">Disponibil live pe <code>iasi-safeflow.github.io</code> și ca pachet instalabil <code>iasi-safeflow.apk</code> (v0.4.1) cu backend dedicat pe Render.</p>
+            </div>
+            <div class="st-card anim-item d3">
+              <div class="card-head"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></span>Flux complet în 4 runde</div>
+              <p class="body-sm">De la harta publică cu Zone frecvente și confirmări +1, la punctaj civic, comentarii moderate, foto fără EXIF și dosar oficial gata de înregistrat.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 8: CLOSING -->
+        <section id="slide-8" class="slide-panel">
+          <div style="max-width:780px;margin:0 auto;text-align:center;">
+            <div class="kicker-pill anim-item d1">08 • Echipa Synaptik • Iași SafeFlow</div>
+            <h1 class="h1-hero anim-item d2" style="font-size:44px;">
+              Trafic mai sigur în Iași, construit împreună.
+            </h1>
+            <p class="lead-copy anim-item d3" style="margin:0 auto 24px;">
+              Prototip funcțional astăzi pe telefon și web. Pilot B2G pentru primării și dispecerate mâine. Vă mulțumim — suntem gata pentru întrebări!
+            </p>
+            <div class="grid-2 anim-item d4" style="text-align:left;">
+              <a href="https://iasi-safeflow.github.io" target="_blank" rel="noopener noreferrer" class="st-card" style="text-decoration:none;display:block;color:inherit;">
+                <div class="card-head">
+                  <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></span>
+                  Aplicație Web &amp; PWA Live
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--st-accent);font-weight:700;">https://iasi-safeflow.github.io</div>
+              </a>
+              <a href="https://github.com/iasi-safeflow/iasi-safeflow.github.io/releases/latest/download/iasi-safeflow.apk" target="_blank" rel="noopener noreferrer" class="st-card" style="text-decoration:none;display:block;color:inherit;">
+                <div class="card-head">
+                  <span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                  Aplicație Android semnată (v0.4.1)
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--st-good);font-weight:700;">.../releases/latest/download/iasi-safeflow.apk</div>
+              </a>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="stage-footer">
+        <div class="slide-dots" role="tablist" aria-label="Navigare rapidă slide-uri">
+          <button type="button" class="s-dot active" data-go="1" onclick="goSlide(1)" aria-label="Slide 1"></button>
+          <button type="button" class="s-dot" data-go="2" onclick="goSlide(2)" aria-label="Slide 2"></button>
+          <button type="button" class="s-dot" data-go="3" onclick="goSlide(3)" aria-label="Slide 3"></button>
+          <button type="button" class="s-dot" data-go="4" onclick="goSlide(4)" aria-label="Slide 4"></button>
+          <button type="button" class="s-dot" data-go="5" onclick="goSlide(5)" aria-label="Slide 5"></button>
+          <button type="button" class="s-dot" data-go="6" onclick="goSlide(6)" aria-label="Slide 6"></button>
+          <button type="button" class="s-dot" data-go="7" onclick="goSlide(7)" aria-label="Slide 7"></button>
+          <button type="button" class="s-dot" data-go="8" onclick="goSlide(8)" aria-label="Slide 8"></button>
+        </div>
+        <div class="tabular">Săgeți ← → pentru navigare • Tasta N pentru note prezentator</div>
+      </footer>
+    </main>
   </div>
-  <div class="hud-group">
-    <button class="hud-btn" id="btnTimer" title="Click: Start/Pauză • Dublu-click: Reset">⏱ 05:00</button>
-    <button class="hud-btn" id="btnNotes">Note</button>
-    <button class="hud-btn hide-mobile" id="btnFull" title="Ecran complet">⛶</button>
+
+  <!-- Presenter Notes Modal -->
+  <div id="notesModal" class="notes-backdrop" onclick="if(event.target===this)toggleNotes()">
+    <div class="notes-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+        <strong id="notesTitle" style="font-size:17px;">Note prezentator — Slide 1 / 8</strong>
+        <button type="button" class="hud-btn" onclick="toggleNotes()">Închide</button>
+      </div>
+      <p id="notesBody" style="font-size:15px;line-height:1.62;color:#D6D0EB;margin:0;"></p>
+    </div>
   </div>
-</header>
 
-<main id="stage">
+  <script>
+    const TOTAL_SLIDES = 8;
+    const NOTES = {
+      1: '[0:00 – 0:30] Întrebare directă juriului: „Câți dintre voi ați trecut pe lângă o groapă periculoasă lângă o trecere de pietoni și nu ați știut cui să raportați?” Explicați golul dintre 112 (doar urgențe vitale) și petițiile lente fără feedback.',
+      2: '[0:30 – 1:40] Porniți clipul demonstrativ complet (45s) și comentați cele 4 acte: 1) Pietonul fotografiază pericolul; 2) În aplicația reală trece filtrul 112, pune pin-ul + poza fără EXIF și vecinii confirmă (+1); 3) Recenzentul vede scorul AI 85/100 și scoate Dosarul PDF; 4) Același pieton traversează strada reparată fără groapă, iar cetățeanul primește 50 Puncte Civice.',
+      3: '[1:40 – 2:15] Subliniați arhitectura Human-in-the-Loop (asistent-reguli-v2): motorul nostru rulează local cu 0 lei cost API, deduce duplicate în 150m, ascunde automat numere de înmatriculare și șterge EXIF. Omul ia întotdeauna decizia finală.',
+      4: '[2:15 – 2:45] Arătați mecanismul anti-spam: 0 puncte la trimitere; punctele se acordă DOAR când recenzentul validează raportul. Cu 50 pct ridici un pericol urgent în coadă; la 100 pct confirmările tale valorează 2×. Menționați modul TalkBack și contrastul 7:1.',
+      5: '[2:45 – 3:40] SLIDE OBLIGATORIU JURIU #1: Cetățeanul = gratuit; Primăria (UAT) plătește abonament unic SaaS B2G sub pragul SEAP (270.120 lei). Ipoteză: 1.500–4.000 lei/lună vs. 6.000–9.000 lei/lună triaj manual + 10.000–35.000+ lei o daună în instanță. Marjă ~88%. Piață: 480k lei/an Iași+ZMI, ~11,2 mil. lei/an național; primii 10 clienți prin pilot gratuit 60 zile în ZMI.',
+      6: '[3:40 – 4:30] SLIDE OBLIGATORIU JURIU #2: Cerem 15.000 EUR (~75.000 lei): 45% produs multi-UAT, 25% piloți ZMI, 15% cloud/AI, 15% juridic/GDPR/SEAP. Proiecția Prudent vs. Optimist pe 24 luni (toate marcate ipoteză). Fiind echipă de minori, semnarea în faza de grant/pilot e asigurată prin reprezentant legal adult, cu înființare SRL (administrator adult) la primele contracte.',
+      7: '[4:30 – 4:50] Dovada că livrăm: tot ce ați văzut rulează live astăzi în v0.4.1 — 250 de teste backend trecute, 0 erori de accesibilitate WCAG și aplicația Android semnată gata de instalare.',
+      8: '[4:50 – 5:00] Concluzie memorabilă: „Trafic mai sigur în Iași, construit împreună.” Invitați juriul să testeze live aplicația web sau APK-ul și deschideți sesiunea de întrebări.'
+    };
 
-  <!-- SLIDE 1: TITLU & HOOK -->
-  <section class="slide active" data-note="0:00 – 0:25 | Deschide direct cu întrebarea către juriu. Fă o pauză de 2 secunde, apoi prezintă Iași SafeFlow ca puntea rapidă dintre cetățean și siguranța rutieră din Iași.">
-    <div class="kicker">Echipa Synaptik • Prototip v0.4.1 • Iași</div>
-    <h1>Iași <span class="accent-text">SafeFlow</span></h1>
-    <p class="lead">De la o problemă rutieră observată pe stradă la o intersecție liberă, în câteva minute.</p>
-    <div class="hook-box frag">
-      „Câți dintre voi ați trecut săptămâna asta pe lângă o intersecție blocată sau o groapă periculoasă și nu ați știut cui să raportați?”
-    </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;" class="frag">
-      <span class="badge">Web App + Android APK</span>
-      <span class="badge badge-green">AI + Validare Umană</span>
-      <span class="badge badge-red">Triaj Siguranță 112</span>
-    </div>
-  </section>
+    const stage = document.getElementById('stage');
+    const storyVideo = document.getElementById('storyVideo');
+    if (storyVideo) storyVideo.volume = 0.6;
+    const hudCounter = document.getElementById('hudCounter');
+    const topProgressFill = document.getElementById('topProgressFill');
+    const notesModal = document.getElementById('notesModal');
+    const notesTitle = document.getElementById('notesTitle');
+    const notesBody = document.getElementById('notesBody');
+    const timerBtn = document.getElementById('timerBtn');
+    const timerText = document.getElementById('timerText');
+    const themeLabel = document.getElementById('themeLabel');
 
-  <!-- SLIDE 2: PROBLEMA -->
-  <section class="slide" data-note="0:25 – 0:55 | Explică de ce sistemul actual nu funcționează pentru probleme non-urgente: oamenii ori blochează 112, ori renunță din cauza birocrației și a lipsei de feedback.">
-    <div class="kicker">01 • Problema</div>
-    <h2>Între <span class="red-text">112</span> și „lasă că trece” există un gol.</h2>
-    <div class="grid-3">
-      <div class="card frag">
-        <span class="badge badge-red" style="margin-bottom:8px;">112 blocat</span>
-        <h3>Non-urgențele încarcă linia</h3>
-        <p>O groapă periculoasă sau o mașină care blochează banda nu sunt urgențe vitale, dar generează riscuri reale.</p>
-      </div>
-      <div class="card frag">
-        <span class="badge" style="margin-bottom:8px;">Birocrație</span>
-        <h3>Sesizări lente și complicate</h3>
-        <p>Formulare lungi, e-mailuri fără răspuns și adrese greu de identificat descurajează raportarea rapidă.</p>
-      </div>
-      <div class="card frag">
-        <span class="badge badge-green" style="margin-bottom:8px;">Zero feedback</span>
-        <h3>Cetățeanul nu știe ce s-a întâmplat</h3>
-        <p>Fără status clar și fără recunoaștere, oamenii renunță să mai semnaleze problemele din oraș.</p>
-      </div>
-    </div>
-  </section>
+    let currentSlide = 1;
+    let remaining = 300;
+    let timerId = null;
+    let scoreTimer = null;
 
-  <!-- SLIDE 3: SOLUȚIA + TRIAJ 112 -->
-  <section class="slide" data-note="0:55 – 1:30 | Prezintă fluxul real din aplicație: raportare în sub un minut, dar întotdeauna precedată de filtrul obligatoriu de siguranță 112.">
-    <div class="kicker">02 • Soluția</div>
-    <h2>Raportare civică în <span class="accent-text">~1 minut</span>, cu triaj de siguranță.</h2>
-    <div class="grid-2">
-      <div class="point-list">
-        <div class="point-item frag">
-          <div class="point-dot">1</div>
-          <div>
-            <strong>Filtru obligatoriu 112</strong>
-            <span>Înainte de orice raport, aplicația verifică dacă există răniți sau pericol imediat și redirecționează instant la 112.</span>
-          </div>
-        </div>
-        <div class="point-item frag">
-          <div class="point-dot">2</div>
-          <div>
-            <strong>Semnalare rapidă din mers</strong>
-            <span>Alegi categoria (intersecție periculoasă, carosabil, blocaj), fixezi zona și trimiți în 3 atingeri.</span>
-          </div>
-        </div>
-        <div class="point-item frag">
-          <div class="point-dot">3</div>
-          <div>
-            <strong>Accesibil instant</strong>
-            <span>Funcționează direct în browser pe <strong>iasi-safeflow.github.io</strong> sau ca aplicație instalabilă Android (APK).</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="phone-mock frag">
-        <div class="mock-112">
-          <span><strong>Urgență sau răniți?</strong> SafeFlow nu e serviciu de urgență.</span>
-          <span class="mock-112-btn">Sună 112</span>
-        </div>
-        <div style="text-align:center; font-weight:700; font-size:13px; margin-bottom:8px;">Raportează</div>
-        <div class="mock-card">
-          <div style="font-size:13px; font-weight:700; line-height:1.35;">Este cineva rănit sau există un pericol imediat chiar acum?</div>
-          <div class="mock-btn-row">
-            <span class="mock-pill danger">Da → 112</span>
-            <span class="mock-pill primary">Nu, continuă</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- SLIDE 4: MINI-ANIMAȚIA (5 SCENE INTERACTIVE) -->
-  <section class="slide" id="slideAnim" data-note="1:30 – 2:15 | Momentul WOW: fiecare click avansează povestea prin cele 5 scene. Explică tranziția de la cetățean -> raport SafeFlow -> Dispecer + AI -> Poliția Locală -> Intersecție eliberată + Puncte Civice.">
-    <div class="anim-wrapper">
-      <div class="anim-header">
-        <div>
-          <div class="kicker" style="margin-bottom:2px;">03 • Viziunea Completă (Animație)</div>
-          <h2 style="margin-bottom:0; font-size:clamp(18px, 2.8vw, 32px);">Cum se rezolvă o intersecție blocată</h2>
-        </div>
-        <div class="scene-steps no-advance">
-          <span class="scene-dot active" data-s="0"></span>
-          <span class="scene-dot" data-s="1"></span>
-          <span class="scene-dot" data-s="2"></span>
-          <span class="scene-dot" data-s="3"></span>
-          <span class="scene-dot" data-s="4"></span>
-          <button class="hud-btn" id="btnAutoPlay" style="margin-left:6px;">▶ Auto</button>
-        </div>
-      </div>
-
-      <div class="svg-stage">
-        <svg viewBox="0 0 640 340" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="bgSky" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#19132b"/>
-              <stop offset="100%" stop-color="#100c1c"/>
-            </linearGradient>
-            <linearGradient id="violetGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#8b5cf6"/>
-              <stop offset="100%" stop-color="#c4a5ff"/>
-            </linearGradient>
-          </defs>
-
-          <rect width="640" height="340" fill="url(#bgSky)"/>
-
-          <!-- SCENA 1: INTERSECȚIE BLOCATĂ -->
-          <g class="scene-g active" id="scene-0">
-            <!-- Roads -->
-            <rect x="0" y="135" width="640" height="86" fill="#232033"/>
-            <rect x="265" y="0" width="110" height="340" fill="#232033"/>
-            <!-- Crosswalk & dashes -->
-            <line x1="0" y1="178" x2="250" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
-            <line x1="390" y1="178" x2="640" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
-            <line x1="320" y1="0" x2="320" y2="120" stroke="#6b6385" stroke-width="3" stroke-dasharray="12 10"/>
-            <line x1="320" y1="235" x2="320" y2="340" stroke="#6b6385" stroke-width="3" stroke-dasharray="12 10"/>
-            <!-- Blocked diagonal car in center -->
-            <g class="anim-honk">
-              <rect x="284" y="150" width="76" height="38" rx="10" fill="#e03e3e" transform="rotate(-18 322 169)"/>
-              <rect x="300" y="156" width="38" height="26" rx="6" fill="#ffd6d6" opacity="0.7" transform="rotate(-18 322 169)"/>
-            </g>
-            <!-- Stuck cars left -->
-            <rect x="175" y="145" width="68" height="32" rx="8" fill="#60a5fa"/>
-            <rect x="92" y="145" width="68" height="32" rx="8" fill="#a78bfa"/>
-            <!-- Stuck car top -->
-            <rect x="278" y="65" width="34" height="58" rx="8" fill="#fbbf24"/>
-            <!-- Alert pulse ring -->
-            <circle cx="322" cy="170" r="28" fill="none" stroke="#ff5c5c" stroke-width="3" class="anim-pulse"/>
-            <g transform="translate(306, 108)">
-              <polygon points="16,0 32,28 0,28" fill="#e03e3e"/>
-              <text x="16" y="23" text-anchor="middle" fill="#fff" font-size="16" font-weight="800">!</text>
-            </g>
-            <!-- Citizen on sidewalk looking worried -->
-            <g transform="translate(468, 232)">
-              <circle cx="24" cy="18" r="14" fill="#fcd34d"/>
-              <circle cx="19" cy="16" r="2" fill="#1e1b2e"/>
-              <circle cx="29" cy="16" r="2" fill="#1e1b2e"/>
-              <path d="M18 25 Q24 20 30 25" stroke="#1e1b2e" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-              <rect x="10" y="34" width="28" height="44" rx="10" fill="#8b5cf6"/>
-              <rect x="46" y="0" width="110" height="30" rx="10" fill="#221b36" stroke="#e03e3e"/>
-              <text x="101" y="19" text-anchor="middle" fill="#ff8a8a" font-size="11" font-weight="700">Blocaj total!</text>
-            </g>
-            <text x="20" y="30" fill="#a69bc2" font-size="13" font-weight="700">IAȘI • INTERSECȚIE BLOCATĂ</text>
-          </g>
-
-          <!-- SCENA 2: RAPORTARE PE IAȘI SAFEFLOW -->
-          <g class="scene-g" id="scene-1">
-            <!-- Citizen -->
-            <g transform="translate(95, 118)">
-              <circle cx="48" cy="36" r="24" fill="#fcd34d"/>
-              <circle cx="40" cy="33" r="3" fill="#1e1b2e"/>
-              <circle cx="56" cy="33" r="3" fill="#1e1b2e"/>
-              <path d="M40 45 Q48 49 56 45" stroke="#1e1b2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-              <rect x="20" y="64" width="56" height="92" rx="18" fill="#8b5cf6"/>
-              <!-- Holding phone -->
-              <rect x="78" y="88" width="26" height="44" rx="5" fill="#c4a5ff" stroke="#fff" stroke-width="1.5"/>
-            </g>
-
-            <!-- Signal waves -->
-            <path d="M225 140 Q255 120 285 140" stroke="#c4a5ff" stroke-width="3" fill="none" stroke-linecap="round" class="anim-wave-1"/>
-            <path d="M215 122 Q255 92 295 122" stroke="#34d399" stroke-width="3" fill="none" stroke-linecap="round" class="anim-wave-2"/>
-
-            <!-- Enlarged SafeFlow Phone UI -->
-            <g transform="translate(310, 32)">
-              <rect x="0" y="0" width="235" height="276" rx="22" fill="#120e1d" stroke="#c4a5ff" stroke-width="2.5"/>
-              <rect x="14" y="16" width="207" height="32" rx="8" fill="#3a1824" stroke="#e03e3e"/>
-              <text x="117" y="36" text-anchor="middle" fill="#ff9494" font-size="11" font-weight="700">Nu e urgență 112 ✓</text>
-
-              <text x="18" y="72" fill="#c4a5ff" font-size="11" font-weight="700">SAFEFLOW IAȘI</text>
-              <text x="18" y="92" fill="#ffffff" font-size="14" font-weight="800">Semnalează o problemă</text>
-
-              <rect x="16" y="108" width="203" height="44" rx="10" fill="#221b36" stroke="#8b5cf6"/>
-              <text x="28" y="128" fill="#ffffff" font-size="12" font-weight="700">Intersecție blocată</text>
-              <text x="28" y="143" fill="#a69bc2" font-size="10">Locație detectată (~10m)</text>
-
-              <rect x="16" y="164" width="203" height="36" rx="10" fill="#221b36"/>
-              <text x="28" y="186" fill="#a69bc2" font-size="11">„Acces blocat, coloană pe 2 benzi”</text>
-
-              <rect x="16" y="216" width="203" height="40" rx="12" fill="url(#violetGrad)"/>
-              <text x="117" y="241" text-anchor="middle" fill="#120e1d" font-size="14" font-weight="800">Trimite raport →</text>
-            </g>
-          </g>
-
-          <!-- SCENA 3: DISPECER + AI PRIORITIZARE -->
-          <g class="scene-g" id="scene-2">
-            <!-- Dispatcher Desk & Monitor -->
-            <rect x="38" y="30" width="380" height="236" rx="16" fill="#141024" stroke="#8b5cf6" stroke-width="2"/>
-            <!-- Top Bar -->
-            <rect x="38" y="30" width="380" height="34" rx="16" fill="#221b36"/>
-            <text x="56" y="51" fill="#c4a5ff" font-size="12" font-weight="800">CONT DISPECER • IAȘI SAFEFLOW</text>
-            <circle cx="394" cy="47" r="6" fill="#34d399"/>
-
-            <!-- Map widget left -->
-            <rect x="54" y="78" width="150" height="170" rx="10" fill="#1d2524" stroke="#362c54"/>
-            <line x1="54" y1="155" x2="204" y2="155" stroke="#475569" stroke-width="8"/>
-            <line x1="128" y1="78" x2="128" y2="248" stroke="#475569" stroke-width="8"/>
-            <circle cx="128" cy="155" r="22" fill="none" stroke="#fbbf24" stroke-width="3" class="anim-pulse"/>
-            <circle cx="128" cy="155" r="11" fill="#e03e3e"/>
-            <text x="128" y="159" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">3</text>
-
-            <!-- AI Alert Card right -->
-            <rect x="218" y="78" width="184" height="170" rx="12" fill="#1e1730" stroke="#fbbf24" stroke-width="1.5"/>
-            <rect x="230" y="90" width="160" height="22" rx="6" fill="rgba(251,191,36,0.2)"/>
-            <text x="310" y="105" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="800">AI: 3 RAPOARTE SIMILARE</text>
-            <text x="230" y="132" fill="#ffffff" font-size="12" font-weight="700">Intersecție blocată</text>
-            <text x="230" y="149" fill="#a69bc2" font-size="10">ID: SF-849201 • Prioritate: Mare</text>
-            <text x="230" y="166" fill="#34d399" font-size="10" font-weight="700">✓ Validat de dispecer</text>
-
-            <rect x="230" y="192" width="160" height="38" rx="10" fill="#34d399"/>
-            <text x="310" y="215" text-anchor="middle" fill="#0d1f18" font-size="12" font-weight="800">Trimite Poliția Locală →</text>
-
-            <!-- Dispatcher Character -->
-            <g transform="translate(465, 108)">
-              <circle cx="62" cy="40" r="24" fill="#fcd34d"/>
-              <!-- Headset -->
-              <path d="M36 40 A26 26 0 0 1 88 40" stroke="#c4a5ff" stroke-width="5" fill="none"/>
-              <rect x="32" y="34" width="8" height="16" rx="4" fill="#8b5cf6"/>
-              <rect x="84" y="34" width="8" height="16" rx="4" fill="#8b5cf6"/>
-              <circle cx="54" cy="38" r="2.8" fill="#1e1b2e"/>
-              <circle cx="70" cy="38" r="2.8" fill="#1e1b2e"/>
-              <path d="M55 49 Q62 53 69 49" stroke="#1e1b2e" stroke-width="2.2" fill="none"/>
-              <rect x="30" y="70" width="64" height="92" rx="18" fill="#3b82f6"/>
-              <text x="62" y="118" text-anchor="middle" fill="#fff" font-size="11" font-weight="800">DISPECER</text>
-            </g>
-          </g>
-
-          <!-- SCENA 4: POLIȚIA LOCALĂ ELIBEREAZĂ INTERSECȚIA -->
-          <g class="scene-g" id="scene-3">
-            <!-- Roads -->
-            <rect x="0" y="135" width="640" height="86" fill="#232033"/>
-            <rect x="265" y="0" width="110" height="340" fill="#232033"/>
-            <line x1="0" y1="178" x2="250" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
-            <line x1="390" y1="178" x2="640" y2="178" stroke="#6b6385" stroke-width="3" stroke-dasharray="14 12"/>
-
-            <!-- Police Car -->
-            <g transform="translate(270, 232)">
-              <rect x="0" y="0" width="98" height="44" rx="10" fill="#f8fafc" stroke="#3b82f6" stroke-width="2"/>
-              <rect x="0" y="24" width="98" height="10" fill="#2563eb"/>
-              <text x="49" y="19" text-anchor="middle" fill="#1e293b" font-size="9" font-weight="900">POLIȚIA LOCALĂ</text>
-              <!-- Flashing Siren -->
-              <rect x="36" y="-8" width="12" height="8" rx="2" fill="#ef4444" class="anim-siren-r"/>
-              <rect x="50" y="-8" width="12" height="8" rx="2" fill="#3b82f6" class="anim-siren-b"/>
-            </g>
-
-            <!-- Flowing Cars (moving smoothly!) -->
-            <g class="anim-car-go-r">
-              <rect x="110" y="145" width="68" height="30" rx="8" fill="#60a5fa"/>
-              <rect x="240" y="145" width="68" height="30" rx="8" fill="#a78bfa"/>
-              <rect x="370" y="145" width="68" height="30" rx="8" fill="#34d399"/>
-            </g>
-            <g class="anim-car-go-d">
-              <rect x="278" y="18" width="32" height="54" rx="8" fill="#fbbf24"/>
-            </g>
-
-            <!-- Green Cleared Banner -->
-            <rect x="20" y="22" width="230" height="38" rx="12" fill="rgba(52,211,153,0.18)" stroke="#34d399"/>
-            <text x="135" y="46" text-anchor="middle" fill="#34d399" font-size="13" font-weight="800">✓ INTERSECȚIE ELIBERATĂ</text>
-          </g>
-
-          <!-- SCENA 5: CETĂȚEAN FERICIT + PUNCTE CIVICE -->
-          <g class="scene-g" id="scene-4">
-            <!-- Confetti sparkles -->
-            <circle cx="130" cy="70" r="5" fill="#fbbf24" class="anim-float"/>
-            <circle cx="510" cy="84" r="6" fill="#34d399" class="anim-float"/>
-            <circle cx="215" cy="52" r="4" fill="#c4a5ff" class="anim-float"/>
-            <circle cx="440" cy="58" r="5" fill="#60a5fa" class="anim-float"/>
-            <circle cx="545" cy="185" r="4" fill="#fbbf24" class="anim-float"/>
-
-            <!-- Happy Citizen celebrating -->
-            <g transform="translate(115, 92)">
-              <!-- Raised happy arms -->
-              <path d="M26 88 L-6 44" stroke="#8b5cf6" stroke-width="14" stroke-linecap="round"/>
-              <path d="M84 88 L116 44" stroke="#8b5cf6" stroke-width="14" stroke-linecap="round"/>
-              <!-- Body -->
-              <rect x="24" y="74" width="62" height="106" rx="20" fill="#8b5cf6"/>
-              <!-- Head with big smile -->
-              <circle cx="55" cy="38" r="28" fill="#fcd34d"/>
-              <!-- Happy eyes (^ ^) -->
-              <path d="M40 34 Q45 27 50 34" stroke="#1e1b2e" stroke-width="3" fill="none" stroke-linecap="round"/>
-              <path d="M60 34 Q65 27 70 34" stroke="#1e1b2e" stroke-width="3" fill="none" stroke-linecap="round"/>
-              <!-- Big wide smile -->
-              <path d="M41 46 Q55 62 69 46 Z" fill="#1e1b2e"/>
-              <path d="M46 52 Q55 57 64 52" stroke="#ff7b7b" stroke-width="3" fill="none" stroke-linecap="round"/>
-            </g>
-
-            <!-- Reward Phone & Floating Points Badge -->
-            <g transform="translate(310, 62)" class="anim-pop">
-              <rect x="0" y="42" width="248" height="176" rx="18" fill="#181326" stroke="#34d399" stroke-width="2.5"/>
-              <text x="124" y="82" text-anchor="middle" fill="#34d399" font-size="14" font-weight="800">✓ RAPORT REZOLVAT</text>
-              <text x="124" y="106" text-anchor="middle" fill="#e4ddf5" font-size="12">Intersecția a fost eliberată</text>
-              <text x="124" y="124" text-anchor="middle" fill="#a69bc2" font-size="11">Mulțumim pentru implicare!</text>
-
-              <!-- Points Pill -->
-              <g class="anim-float">
-                <rect x="26" y="144" width="196" height="48" rx="24" fill="#fbbf24"/>
-                <text x="124" y="174" text-anchor="middle" fill="#1a1204" font-size="18" font-weight="900">★ +50 PUNCTE CIVICE</text>
-              </g>
-            </g>
-          </g>
-        </svg>
-      </div>
-
-      <div class="anim-caption">
-        <div>
-          <div class="anim-caption-title" id="animTitle">1. Cetățeanul observă o intersecție blocată</div>
-          <div class="anim-caption-sub" id="animSub">Traficul stă pe loc în Iași, iar riscul de incidente crește cu fiecare minut.</div>
-        </div>
-        <span class="badge" id="animStepBadge">Scena 1 / 5</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- SLIDE 5: PROTOTIP REAL v0.4.1 -->
-  <section class="slide" data-note="2:15 – 2:55 | Arată clar ce există deja construit și live astăzi în v0.4.1, pentru credibilitate tehnică maximă în fața juriului.">
-    <div class="kicker">04 • Ce funcționează deja (v0.4.1)</div>
-    <h2>Prototip real, live pe <span class="accent-text">iasi-safeflow.github.io</span></h2>
-    <div class="grid-2">
-      <div class="phone-mock frag">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:6px;">
-          <span class="badge" style="font-size:10px; padding:2px 8px;">Zone frecvente</span>
-          <span style="color:var(--muted);">Caută o stradă în Iași...</span>
-        </div>
-        <div class="mini-map">
-          <span class="map-label" style="top:12px; left:18px;">Ticău</span>
-          <span class="map-label" style="top:38px; right:26px;">Tătărași</span>
-          <span class="map-label" style="bottom:18px; left:40%;">Tudor Vladimirescu</span>
-          <span class="cluster-dot" style="top:34px; left:30%;">4</span>
-          <span class="cluster-dot" style="top:54px; left:52%;">4</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; background:var(--surface-2); padding:6px 10px; border-radius:9px;">
-          <span>Tracking ID:</span>
-          <strong class="accent-text">SF-849201</strong>
-        </div>
-        <div class="status-legend">
-          <span><i class="s-dot" style="background:#60a5fa;"></i>Primit</span>
-          <span><i class="s-dot" style="background:#fbbf24;"></i>În analiză</span>
-          <span><i class="s-dot" style="background:#2dd4bf;"></i>Validat</span>
-          <span><i class="s-dot" style="background:#34d399;"></i>Rezolvat</span>
-        </div>
-      </div>
-
-      <div class="point-list">
-        <div class="point-item frag">
-          <div class="point-dot">🗺</div>
-          <div>
-            <strong>Hartă Leaflet + OpenStreetMap</strong>
-            <span>Comutare între Puncte individuale și Zone frecvente (clustering) + căutare după stradă.</span>
-          </div>
-        </div>
-        <div class="point-item frag">
-          <div class="point-dot">ID</div>
-          <div>
-            <strong>Verificare fără cont obligatoriu</strong>
-            <span>Fiecare raport primește cod unic <code>SF-XXXXXXXX</code> pentru a urmări statusul în timp real.</span>
-          </div>
-        </div>
-        <div class="point-item frag">
-          <div class="point-dot">⚡</div>
-          <div>
-            <strong>Backend API pe Render + Fallback</strong>
-            <span>API dedicat (<code>iasi-safeflow-api.onrender.com</code>) și date simulate automate pentru demo continuu.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- SLIDE 6: AI + HUMAN-IN-THE-LOOP -->
-  <section class="slide" data-note="2:55 – 3:30 | Subliniază arhitectura responsabilă: AI-ul nu ia decizii oarbe și nu sună singur la poliție; el elimină zgomotul și grupează rapoartele similare pentru dispecer.">
-    <div class="kicker">05 • Inteligența Artificială</div>
-    <h2>AI pentru prioritizare, <span class="green-text">omul</span> ia decizia finală.</h2>
-    <p class="lead" style="margin-bottom:clamp(10px, 1.8vh, 18px);">Model <strong>Human-in-the-Loop</strong> care transformă rapoarte dispersate în alerte clare de dispecerat.</p>
-    <div class="pipeline">
-      <div class="pipe-step frag">
-        <div class="pipe-num">PAS 01</div>
-        <h3>Rapoarte brute</h3>
-        <p>Mai mulți cetățeni semnalează aceeași intersecție sau același defect din zonă.</p>
-      </div>
-      <div class="pipe-step frag">
-        <div class="pipe-num">PAS 02</div>
-        <h3>Similaritate text</h3>
-        <p>Motorul AI compară descrierile și coordonatele pentru a detecta duplicatele.</p>
-      </div>
-      <div class="pipe-step frag">
-        <div class="pipe-num">PAS 03</div>
-        <h3>Scor de prioritate</h3>
-        <p>Reguli + frecvența observațiilor ridică automat urgența în lista de analiză.</p>
-      </div>
-      <div class="pipe-step frag" style="border-color:rgba(52,211,153,0.45);">
-        <div class="pipe-num" style="color:var(--green);">PAS 04</div>
-        <h3>Validare umană</h3>
-        <p>Recenzentul / dispecerul confirmă și trimite sesizarea către echipaj.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- SLIDE 7: PRIVACY & DESIGN RESPONSABIL -->
-  <section class="slide" data-note="3:30 – 4:05 | Diferențiatorii de maturitate tehnică: protecția reală a locației (Privacy by Design), transparență totală și o interfață adaptabilă pe orice telefon.">
-    <div class="kicker">06 • Diferențiatori</div>
-    <h2>Construit responsabil: <span class="accent-text">Privacy by Design</span></h2>
-    <div class="grid-3">
-      <div class="card frag">
-        <span class="badge" style="margin-bottom:8px;">Confidențialitate</span>
-        <h3>Coordonate rotunjite</h3>
-        <p>Serverul trimite coordonate rotunjite (~10 m) la OpenStreetMap Nominatim fără date personale, iar pe hartă punctele sunt aproximative (~100 m).</p>
-      </div>
-      <div class="card frag">
-        <span class="badge badge-red" style="margin-bottom:8px;">Transparență</span>
-        <h3>Delimitare clară 112</h3>
-        <p>Fiecare raport este etichetat corect ca observație civică, nu dovadă oficială de accident, cu buton permanent „Sună 112”.</p>
-      </div>
-      <div class="card frag">
-        <span class="badge badge-green" style="margin-bottom:8px;">UX Adaptiv</span>
-        <h3>Claritate în orice condiții</h3>
-        <p>Temă Automată / Luminos / Întunecat, opțiune Text mare, Contrast ridicat, vibrații la confirmare și APK Android dedicat.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- SLIDE 8: GAMIFICARE & IMPACT B2G -->
-  <section class="slide" data-note="4:05 – 4:40 | Arată de ce aplicația nu va fi abandonată după o săptămână: gamificare prin puncte civice pentru utilizatori și un panou clar B2G pentru autoritățile locale din Iași.">
-    <div class="kicker">07 • Retenție & Pilot Iași</div>
-    <h2>De ce revin cetățenii și cum scalăm în <span class="green-text">Iași</span></h2>
-    <div class="grid-2">
-      <div class="card frag" style="border-color:rgba(251,191,36,0.35);">
-        <span class="badge" style="background:rgba(251,191,36,0.16); color:var(--amber); border-color:rgba(251,191,36,0.35); margin-bottom:10px;">★ Gamificare Civică</span>
-        <h3>Puncte reale pentru rapoarte validate</h3>
-        <p style="margin-bottom:10px;">Când o sesizare este confirmată și rezolvată, utilizatorul primește <strong>puncte civice</strong> și insigne de „Cetățean Activ”.</p>
-        <p>Pe termen mediu: posibile parteneriate locale (reduceri comunitare, beneficii transport public) pentru cei mai activi contributori.</p>
-      </div>
-      <div class="card frag" style="border-color:rgba(52,211,153,0.35);">
-        <span class="badge badge-green" style="margin-bottom:10px;">🏛 Integrare Dispecerat (B2G)</span>
-        <h3>Pilot cu Poliția Locală & Primăria Iași</h3>
-        <p style="margin-bottom:10px;">Fluxul actual „Pregătit pentru sesizare” se conectează direct la contul dedicat de <strong>Dispecer</strong>.</p>
-        <p>Autoritățile primesc hărți de căldură cu zonele problematice și alerte deja filtrate de AI — mai puțină birocrație, intervenții mai rapide.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- SLIDE 9: CONCLUZIE & Q&A -->
-  <section class="slide" data-note="4:40 – 5:00 | Încheiere memorabilă și deschidere către întrebări. Invită juriul să testeze live prototipul pe telefon.">
-    <div class="kicker">08 • Concluzie</div>
-    <h1>Trafic mai sigur în Iași,<br><span class="accent-text">construit împreună.</span></h1>
-    <p class="lead">Prototip funcțional astăzi. Dispecerat inteligent și comunitate premiată mâine.</p>
-    <div class="cta-box frag">
-      <span>🌐 iasi-safeflow.github.io</span>
-      <span class="badge badge-green">Echipa Synaptik</span>
-    </div>
-    <p class="frag" style="margin-top:18px; font-size:clamp(15px, 2vw, 22px); font-weight:700; color:var(--text);">
-      Vă mulțumim! Suntem gata pentru întrebări.
-    </p>
-  </section>
-
-</main>
-
-<div class="tap-hint" id="tapHint">Click / Tap oriunde pentru înainte →</div>
-
-<!-- Notes Modal -->
-<div class="modal-backdrop no-advance" id="notesModal">
-  <div class="modal-box">
-    <div class="modal-top">
-      <strong style="color:var(--accent); font-size:14px;">📝 Note prezentator — <span id="notesSlideLabel">Slide 1</span></strong>
-      <button class="hud-btn" id="btnCloseNotes">✕ Închide</button>
-    </div>
-    <div class="modal-body" id="notesText"></div>
-  </div>
-</div>
-
-<script>
-(function() {
-  const slides = Array.from(document.querySelectorAll('.slide'));
-  const totalSlides = slides.length;
-  let currentSlide = 0;
-
-  // Slide 4 (index 3) Animation State
-  const ANIM_SLIDE_INDEX = 3;
-  const animScenes = [
-    {
-      title: '1. Cetățeanul observă o intersecție blocată',
-      sub: 'Traficul stă pe loc în Iași, iar riscul de incidente crește cu fiecare minut.'
-    },
-    {
-      title: '2. Raportează rapid pe Iași SafeFlow',
-      sub: 'Trece de triajul 112 și trimite alerta geolocalizată în mai puțin de un minut.'
-    },
-    {
-      title: '3. Dispecerul vede alerta prioritizată de AI',
-      sub: 'AI-ul grupează rapoartele similare din zonă, iar dispecerul validează și alocă echipajul.'
-    },
-    {
-      title: '4. Poliția Locală intervine și eliberează intersecția',
-      sub: 'Echipajul ajunge la punctul raportat, deblochează traficul, iar circulația revine la normal.'
-    },
-    {
-      title: '5. Status „Rezolvat” + Cetățean fericit cu +50 Puncte Civice',
-      sub: 'Feedback instant și recompensă civică — dovada clară că implicarea lui a contat.'
+    function animateScore() {
+      const el = document.getElementById('scoreCounter');
+      if (!el) return;
+      if (scoreTimer) clearInterval(scoreTimer);
+      let v = 15;
+      el.textContent = String(v);
+      scoreTimer = setInterval(() => {
+        v += 5;
+        if (v >= 85) { v = 85; clearInterval(scoreTimer); }
+        el.textContent = String(v);
+      }, 26);
     }
-  ];
-  let currentScene = 0;
-  let autoTimer = null;
 
-  const progressFill = document.getElementById('progressFill');
-  const slideCounter = document.getElementById('slideCounter');
-  const tapHint = document.getElementById('tapHint');
-  const notesModal = document.getElementById('notesModal');
-  const notesText = document.getElementById('notesText');
-  const notesSlideLabel = document.getElementById('notesSlideLabel');
-  const btnAutoPlay = document.getElementById('btnAutoPlay');
-
-  function setScene(idx) {
-    currentScene = Math.max(0, Math.min(animScenes.length - 1, idx));
-    for (let i = 0; i < animScenes.length; i++) {
-      const g = document.getElementById('scene-' + i);
-      if (g) g.classList.toggle('active', i === currentScene);
+    function replayAnim() {
+      stage.classList.remove('animating');
+      void stage.offsetWidth;
+      stage.classList.add('animating');
+      if (currentSlide === 3) animateScore();
     }
-    document.querySelectorAll('.scene-dot').forEach((dot, i) => {
-      dot.classList.toggle('active', i === currentScene);
-      dot.classList.toggle('done', i < currentScene);
-    });
-    document.getElementById('animTitle').textContent = animScenes[currentScene].title;
-    document.getElementById('animSub').textContent = animScenes[currentScene].sub;
-    document.getElementById('animStepBadge').textContent = `Scena ${currentScene + 1} / ${animScenes.length}`;
-  }
 
-  function stopAutoPlay() {
-    if (autoTimer) {
-      clearInterval(autoTimer);
-      autoTimer = null;
-      btnAutoPlay.textContent = '▶ Auto';
+    function goSlide(n) {
+      const target = Math.max(1, Math.min(TOTAL_SLIDES, Number(n)));
+      if (currentSlide === 2 && target !== 2 && storyVideo) storyVideo.pause();
+      currentSlide = target;
+      document.querySelectorAll('.slide-panel').forEach((p, idx) => p.classList.toggle('active', idx + 1 === target));
+      document.querySelectorAll('.s-dot').forEach((d) => d.classList.toggle('active', Number(d.dataset.go) === target));
+      hudCounter.textContent = String(target).padStart(2, '0') + ' / 0' + TOTAL_SLIDES;
+      topProgressFill.style.width = ((target / TOTAL_SLIDES) * 100) + '%';
+      notesTitle.textContent = 'Note prezentator — Slide ' + target + ' / ' + TOTAL_SLIDES;
+      notesBody.textContent = NOTES[target];
+      replayAnim();
     }
-  }
 
-  function toggleAutoPlay() {
-    if (autoTimer) {
-      stopAutoPlay();
-      return;
+    function nextSlide() { goSlide(currentSlide >= TOTAL_SLIDES ? 1 : currentSlide + 1); }
+    function prevSlide() { goSlide(currentSlide <= 1 ? TOTAL_SLIDES : currentSlide - 1); }
+
+    function jumpVideo(sec) {
+      if (!storyVideo) return;
+      storyVideo.currentTime = sec;
+      storyVideo.play().catch(() => {});
     }
-    btnAutoPlay.textContent = '⏸ Pauză';
-    autoTimer = setInterval(() => {
-      if (currentSlide !== ANIM_SLIDE_INDEX) {
-        stopAutoPlay();
+
+    function toggleNotes() { notesModal.classList.toggle('open'); }
+
+    function toggleTheme() {
+      const dark = stage.classList.contains('is-dark');
+      stage.classList.toggle('is-dark', !dark);
+      stage.classList.toggle('is-light', dark);
+      themeLabel.textContent = dark ? 'Întunecat' : 'Luminos';
+    }
+
+    function toggleTimer() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+        timerBtn.classList.remove('timer-on');
         return;
       }
-      if (currentScene < animScenes.length - 1) {
-        setScene(currentScene + 1);
-      } else {
-        setScene(0);
-      }
-    }, 3400);
-  }
-
-  function updateHUD() {
-    const pct = ((currentSlide + 1) / totalSlides) * 100;
-    progressFill.style.width = pct + '%';
-    slideCounter.textContent = `${String(currentSlide + 1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
-    notesSlideLabel.textContent = `Slide ${currentSlide + 1} / ${totalSlides}`;
-    notesText.textContent = slides[currentSlide].dataset.note || '';
-    tapHint.style.opacity = currentSlide === totalSlides - 1 ? '0' : '1';
-  }
-
-  function goToSlide(index, revealAll) {
-    stopAutoPlay();
-    slides[currentSlide].classList.remove('active');
-    currentSlide = Math.max(0, Math.min(totalSlides - 1, index));
-    const slide = slides[currentSlide];
-    slide.classList.add('active');
-
-    const frags = slide.querySelectorAll('.frag');
-    frags.forEach(f => f.classList.toggle('visible', !!revealAll));
-
-    if (currentSlide === ANIM_SLIDE_INDEX) {
-      setScene(revealAll ? animScenes.length - 1 : 0);
-    }
-    updateHUD();
-  }
-
-  function nextStep() {
-    if (notesModal.classList.contains('open')) return;
-
-    // On animation slide, advance scene-by-scene on every click
-    if (currentSlide === ANIM_SLIDE_INDEX) {
-      stopAutoPlay();
-      if (currentScene < animScenes.length - 1) {
-        setScene(currentScene + 1);
-        return;
-      }
-    }
-
-    // Reveal next hidden fragment on current slide
-    const nextFrag = slides[currentSlide].querySelector('.frag:not(.visible)');
-    if (nextFrag) {
-      nextFrag.classList.add('visible');
-      return;
-    }
-
-    // Move to next slide
-    if (currentSlide < totalSlides - 1) {
-      goToSlide(currentSlide + 1, false);
-    }
-  }
-
-  function prevStep() {
-    if (notesModal.classList.contains('open')) return;
-
-    if (currentSlide === ANIM_SLIDE_INDEX) {
-      stopAutoPlay();
-      if (currentScene > 0) {
-        setScene(currentScene - 1);
-        return;
-      }
-    }
-
-    const visibleFrags = slides[currentSlide].querySelectorAll('.frag.visible');
-    if (visibleFrags.length > 0) {
-      visibleFrags[visibleFrags.length - 1].classList.remove('visible');
-      return;
-    }
-
-    if (currentSlide > 0) {
-      goToSlide(currentSlide - 1, true);
-    }
-  }
-
-  // Click / Tap anywhere on stage advances immediately
-  let swipeHandled = false;
-  document.getElementById('stage').addEventListener('click', (e) => {
-    if (swipeHandled) {
-      swipeHandled = false;
-      return;
-    }
-    if (e.target.closest('.no-advance, button, a')) return;
-    nextStep();
-  });
-
-  // Touch swipe support (left = next, right = prev)
-  let touchStartX = 0;
-  let touchStartY = 0;
-  document.getElementById('stage').addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-  }, { passive: true });
-
-  document.getElementById('stage').addEventListener('touchend', (e) => {
-    if (!e.changedTouches.length) return;
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-      swipeHandled = true;
-      if (dx < 0) nextStep();
-      else prevStep();
-    }
-  }, { passive: true });
-
-  // Keyboard navigation
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') {
-      e.preventDefault();
-      nextStep();
-    } else if (e.key === 'ArrowLeft' || e.key === 'Backspace' || e.key === 'PageUp') {
-      e.preventDefault();
-      prevStep();
-    } else if (e.key.toLowerCase() === 'n') {
-      notesModal.classList.toggle('open');
-    } else if (e.key === 'Escape') {
-      notesModal.classList.remove('open');
-    } else if (e.key.toLowerCase() === 'f') {
-      toggleFullscreen();
-    }
-  });
-
-  // HUD Controls
-  document.getElementById('btnPrev').addEventListener('click', (e) => {
-    e.stopPropagation();
-    prevStep();
-  });
-
-  btnAutoPlay.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleAutoPlay();
-  });
-
-  document.querySelectorAll('.scene-dot').forEach(dot => {
-    dot.addEventListener('click', (e) => {
-      e.stopPropagation();
-      stopAutoPlay();
-      setScene(Number(dot.dataset.s));
-    });
-  });
-
-  document.getElementById('btnNotes').addEventListener('click', (e) => {
-    e.stopPropagation();
-    notesModal.classList.toggle('open');
-  });
-  document.getElementById('btnCloseNotes').addEventListener('click', () => {
-    notesModal.classList.remove('open');
-  });
-  notesModal.addEventListener('click', (e) => {
-    if (e.target === notesModal) notesModal.classList.remove('open');
-  });
-
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => {});
-    } else {
-      document.exitFullscreen?.().catch(() => {});
-    }
-  }
-  document.getElementById('btnFull').addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleFullscreen();
-  });
-
-  // 5-Minute Pitch Countdown Timer
-  const btnTimer = document.getElementById('btnTimer');
-  let timeLeft = 300;
-  let timerInterval = null;
-
-  function renderTimer() {
-    const m = Math.floor(timeLeft / 60);
-    const s = timeLeft % 60;
-    btnTimer.textContent = `⏱ ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    btnTimer.classList.toggle('timer-running', !!timerInterval && timeLeft > 45);
-    btnTimer.classList.toggle('timer-warn', timeLeft <= 45);
-  }
-
-  btnTimer.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    } else {
-      if (timeLeft <= 0) timeLeft = 300;
-      timerInterval = setInterval(() => {
-        if (timeLeft > 0) {
-          timeLeft--;
-          renderTimer();
-        } else {
-          clearInterval(timerInterval);
-          timerInterval = null;
-          renderTimer();
-        }
+      timerBtn.classList.add('timer-on');
+      timerId = setInterval(() => {
+        if (remaining > 0) remaining -= 1;
+        const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const s = String(remaining % 60).padStart(2, '0');
+        timerText.textContent = m + ':' + s;
+        if (remaining === 0) { clearInterval(timerId); timerId = null; }
       }, 1000);
     }
-    renderTimer();
-  });
 
-  btnTimer.addEventListener('dblclick', (e) => {
-    e.stopPropagation();
-    clearInterval(timerInterval);
-    timerInterval = null;
-    timeLeft = 300;
-    renderTimer();
-  });
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) stage.requestFullscreen?.().catch(() => {});
+      else document.exitFullscreen?.().catch(() => {});
+    }
 
-  updateHUD();
-  renderTimer();
-})();
-</script>
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') nextSlide();
+      else if (e.key === 'ArrowLeft') prevSlide();
+      else if (e.key.toLowerCase() === 'n') toggleNotes();
+      else if (e.key === 'Escape' && notesModal.classList.contains('open')) toggleNotes();
+    });
+
+    (function initQuery() {
+      const q = new URLSearchParams(window.location.search);
+      const s = Number(q.get('slide'));
+      const th = q.get('theme');
+      if (th === 'light') toggleTheme();
+      if (s >= 1 && s <= TOTAL_SLIDES) goSlide(s);
+      else goSlide(1);
+    })();
+  </script>
 </body>
 </html>

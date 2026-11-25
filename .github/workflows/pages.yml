@@ -6,7 +6,7 @@ name: Deploy web app to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['mobile/**', 'pitch.html', '.github/workflows/pages.yml']
+    paths: ['mobile/**', 'pitch.html', 'pitch-assets/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -42,7 +42,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build:web
-      - run: cp ../pitch.html dist/pitch.html
+      - run: cp ../pitch.html dist/pitch.html && cp -r ../pitch-assets dist/pitch-assets
       - uses: actions/upload-pages-artifact@v3
         with:
           path: mobile/dist

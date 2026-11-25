@@ -30,6 +30,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname === '/pitch.html' || url.pathname.startsWith('/pitch-assets/')) return;
 
   if (req.mode === 'navigate') {
     event.respondWith(
